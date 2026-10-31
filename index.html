@@ -100,6 +100,16 @@
         .v-event-title { font-weight: 800; color: #fca5a5; margin-bottom: 0.4rem; }
         .v-event p { margin: 0 0 0.5rem; font-size: 0.85rem; color: #e2e8f0; line-height: 1.5; }
         .v-event ul { margin: 0.25rem 0 0.5rem 1.1rem; padding: 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; }
+        .v-table .v-ev td { border-top: none; padding: 0 0.3rem 0.7rem; white-space: normal; font-size: 0.78rem; color: #94a3b8; line-height: 1.45; }
+        .v-chip { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; border: 1px solid; }
+        .v-chip.c-low { color: #c4b5fd; border-color: #6d28d9; background: rgba(109,40,217,0.18); }
+        .v-chip.c-storm { color: #fcd34d; border-color: #b45309; background: rgba(180,83,9,0.2); }
+        .v-chip.c-band { color: #7dd3fc; border-color: #0369a1; background: rgba(3,105,161,0.2); }
+        .v-chip.c-show { color: #93c5fd; border-color: #1d4ed8; background: rgba(29,78,216,0.18); }
+        .v-chip.c-shift, .v-chip.c-weak { color: #cbd5e1; border-color: #475569; background: rgba(71,85,105,0.25); }
+        .v-chip.c-res { color: #94a3b8; border-color: #334155; background: transparent; font-weight: 600; }
+        .v-delta { font-weight: 700; color: #e2e8f0; margin-left: 0.4rem; font-size: 0.78rem; }
+        .v-evtext { margin-top: 0.3rem; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -563,6 +573,101 @@
             box.innerHTML = html;
         }
 
+        // v-cause: explain differences between forecast and actual
+        let vSig = null;
+
+        function vCompass(d) { return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(d / 45) % 8]; }
+
+        async function vLoadSignals() {
+            const lat = (typeof LOC !== "undefined") ? LOC.lat : 6.95;
+            const lon = (typeof LOC !== "undefined") ? LOC.lon : 100.45;
+            const tz = (typeof LOC !== "undefined") ? LOC.tz : "Asia/Bangkok";
+            const sets = ["pressure_msl,wind_gusts_10m,wind_direction_10m,weather_code,cape", "pressure_msl,wind_gusts_10m,wind_direction_10m,weather_code"];
+            vSig = null;
+            for (let i = 0; i < sets.length; i++) {
+                try {
+                    const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon
+                        + "&hourly=" + sets[i] + "&timezone=" + encodeURIComponent(tz) + "&past_days=8&forecast_days=1", { cache: "no-store" });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    vSig = (await res.json()).hourly;
+                    return;
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        function vRainDay(d) {
+            let wet = 0, pk = 0, pkH = null;
+            vData.time.forEach((t, k) => {
+                if (!t.startsWith(d)) return;
+                const v = vData.precipitation[k];
+                if (v == null) return;
+                if (v >= 0.2) wet++;
+                if (v > pk) { pk = v; pkH = parseInt(t.slice(11, 13), 10); }
+            });
+            return { wet: wet, pk: pk, pkH: pkH };
+        }
+
+        function vSigDay(d) {
+            if (!vSig || !vSig.time || !vSig.pressure_msl) return null;
+            const ps = vSig.pressure_msl.filter(x => x != null);
+            if (!ps.length) return null;
+            const base = ps.reduce((x, y) => x + y, 0) / ps.length;
+            let pMin = 9999, gust = 0, gustDir = null, thunder = 0, cape = null, any = false;
+            vSig.time.forEach((t, k) => {
+                if (!t.startsWith(d)) return;
+                any = true;
+                const pr = vSig.pressure_msl[k], g = vSig.wind_gusts_10m[k], dir = vSig.wind_direction_10m[k], wc = vSig.weather_code[k];
+                const c = vSig.cape ? vSig.cape[k] : null;
+                if (pr != null && pr < pMin) pMin = pr;
+                if (g != null && g > gust) { gust = g; gustDir = dir; }
+                if (wc != null && wc >= 95) thunder++;
+                if (c != null && (cape === null || c > cape)) cape = c;
+            });
+            if (!any || pMin === 9999) return null;
+            return { drop: base - pMin, gust: gust, dir: gustDir, thunder: thunder, cape: cape };
+        }
+
+        function vCause(o) {
+            const delta = o.aRain - o.fRain, dT = o.aMax - o.fMax;
+            const big = Math.abs(delta) >= Math.max(3, 0.3 * Math.max(o.fRain, o.aRain));
+            if (!big) return { big: false, chip: "📏 Within model resolution", cls: "c-res", text: "" };
+            const sg = vSigDay(o.d), rc = vRainDay(o.d);
+            const hh = rc.pkH != null ? p2(rc.pkH) + ":00" : "";
+            const mm = Math.abs(delta).toFixed(1);
+            let chip, cls, text;
+            if (delta > 0) {
+                if (sg && (sg.drop >= 4 || (sg.drop >= 2.5 && sg.gust >= 40))) {
+                    chip = "🌀 Low-pressure system"; cls = "c-low";
+                    text = "Pressure fell " + sg.drop.toFixed(1) + " hPa below the week's average"
+                        + (sg.gust >= 35 && sg.dir != null ? ", with gusts up to " + Math.round(sg.gust) + " km/h from the " + vCompass(sg.dir) : "")
+                        + ". This points to a low-pressure system (possibly a depression) stronger or closer than forecast: " + mm + " mm more rain fell.";
+                } else if ((sg && (sg.thunder >= 1 || (sg.cape != null && sg.cape >= 1000))) || rc.pk >= 10) {
+                    chip = "⛈ Storm cells"; cls = "c-storm";
+                    text = "Intense downpours: up to " + rc.pk.toFixed(1) + " mm/h" + (hh ? " near " + hh : "")
+                        + (sg && sg.cape != null && sg.cape >= 1000 ? ", very unstable air (CAPE " + Math.round(sg.cape) + " J/kg)" : "")
+                        + (sg && sg.thunder >= 1 ? ", thunderstorm conditions for " + sg.thunder + " h" : "")
+                        + ". Storm cells are smaller than a model grid cell, so their place and strength are hard to forecast (" + mm + " mm more than expected).";
+                } else if (rc.wet >= 12) {
+                    chip = "🌧 Persistent rain band"; cls = "c-band";
+                    text = "Rain fell in " + rc.wet + " of 24 hours: a slow-moving rain band or trough stayed longer than forecast (+" + mm + " mm).";
+                } else {
+                    chip = "🌦 Heavier showers"; cls = "c-show";
+                    text = "Showers were heavier than the model expected (+" + mm + " mm). No strong pressure or storm signal in the data.";
+                }
+            } else if (o.fRain >= 5 && o.aRain < 1) {
+                chip = "↔ Rain band shifted"; cls = "c-shift";
+                text = "Forecast " + o.fRain.toFixed(1) + " mm did not reach this spot; the rain band most likely passed or formed nearby.";
+            } else {
+                chip = "🌤 System weaker than forecast"; cls = "c-weak";
+                text = "Less rain than forecast (−" + mm + " mm)" + (sg && sg.drop < 1.5 ? "; no pressure drop was seen, so the expected system stayed weak or tracked away." : ".");
+            }
+            if (Math.abs(dT) >= 2) {
+                text += " Max temperature was " + Math.abs(dT).toFixed(1) + "°C " + (dT < 0 ? "cooler" : "warmer") + " than forecast"
+                    + (dT < 0 && delta > 0 ? " (cloud and rain cooling)" : "") + ".";
+            }
+            return { big: true, chip: chip, cls: cls, text: text };
+        }
+
         function vRender() {
             const body = document.getElementById("v-body");
             const conf = document.getElementById("v-conf");
@@ -587,20 +692,30 @@
                 }
                 const rows = cur.rows, sc = cur.sc, n = rows.length;
                 let sf = 0, sa = 0;
+                const tally = {};
                 let html = '<table class="v-table"><tr><th>Day</th><th>Forecast</th><th>Actual</th><th></th></tr>';
                 rows.forEach(o => {
                     const fw = o.fRain >= 1, aw = o.aRain >= 1, ok = fw === aw;
                     sf += o.fRain; sa += o.aRain;
+                    const c = vCause(o);
+                    if (c.big) tally[c.chip] = (tally[c.chip] || 0) + 1;
+                    const dlt = o.aRain - o.fRain;
                     const dl = new Date(o.d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
                     html += "<tr><td>" + dl + "</td>"
                         + "<td>" + (fw ? "🌧" : "☀️") + " " + Math.round(o.fMax) + "° · " + o.fRain.toFixed(1) + " mm</td>"
                         + "<td>" + (aw ? "🌧" : "☀️") + " " + Math.round(o.aMax) + "° · " + o.aRain.toFixed(1) + " mm</td>"
-                        + "<td>" + (ok ? "✅" : "❌") + "</td></tr>";
+                        + "<td>" + (ok ? "✅" : "❌") + "</td></tr>"
+                        + '<tr class="v-ev"><td colspan="4"><span class="v-chip ' + c.cls + '">' + c.chip + '</span>'
+                        + '<span class="v-delta">Δ ' + (dlt >= 0 ? "+" : "−") + Math.abs(dlt).toFixed(1) + " mm</span>"
+                        + (c.text ? '<div class="v-evtext">' + c.text + "</div>" : "") + "</td></tr>";
                 });
                 html += "</table>";
+                const keys = Object.keys(tally).sort((x, y) => tally[y] - tally[x]);
                 html += '<div class="v-sum">Rain called right: <strong>' + sc.hit + "/" + n + " days</strong><br>"
                     + "Max temp error: <strong>±" + sc.mae.toFixed(1) + "°C</strong> on average<br>"
-                    + "Rain per day: forecast <strong>" + (sf / n).toFixed(1) + " mm</strong> vs actual <strong>" + (sa / n).toFixed(1) + " mm</strong></div>";
+                    + "Rain per day: forecast <strong>" + (sf / n).toFixed(1) + " mm</strong> vs actual <strong>" + (sa / n).toFixed(1) + " mm</strong><br>"
+                    + (keys.length ? "Main cause of differences: <strong>" + keys[0] + " (" + tally[keys[0]] + " of " + n + " days)</strong>"
+                        : "No large differences: everything within model resolution") + "</div>";
                 body.innerHTML = html;
                 const r = vRating(sc.score);
                 conf.innerHTML = '<div class="v-conf-row"><span class="v-badge" style="background:' + r.c + '">' + r.t + "</span><span>Confidence "
@@ -613,17 +728,20 @@
                 conf.innerHTML = ""; evBox.innerHTML = "";
             }
             document.getElementById("v-note").textContent =
-                "Wet day = 1 mm or more. Actual = Open-Meteo's latest model values, not a rain gauge." + vModel;
+                "Wet day = 1 mm or more. Actual = Open-Meteo's latest model values, not a rain gauge or radar. "
+                + "Event labels are inferred from pressure, wind, CAPE and rain-intensity data, not confirmed by a weather agency." + vModel;
         }
 
         async function loadVerif() {
             const body = document.getElementById("v-body");
             try {
+                const sp = vLoadSignals();
                 let h = null;
                 try { h = await vFetch(""); if (!vDays(h, 1).length) h = null; } catch (e) { h = null; }
                 vModel = "";
                 if (!h) { h = await vFetch("ecmwf_ifs025"); vModel = " Model: ECMWF IFS."; }
                 vData = h;
+                await sp;
                 vRender();
             } catch (e) {
                 console.error(e);
