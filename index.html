@@ -110,6 +110,7 @@
         .v-chip.c-res { color: #94a3b8; border-color: #334155; background: transparent; font-weight: 600; }
         .v-delta { font-weight: 700; color: #e2e8f0; margin-left: 0.4rem; font-size: 0.78rem; }
         .v-evtext { margin-top: 0.3rem; }
+        .lang-sel { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 0.6rem; padding: 0.1rem 0.4rem; font-size: 0.8rem; margin-left: 0.4rem; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -118,7 +119,7 @@
     <div class="container">
         <div class="header-card">
             <h1 id="greeting">Hello!</h1>
-            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button></div>
+            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option></select></div>
             <div class="time" id="clock">--:--:--</div>
             <div class="date" id="date"></div>
         </div>
@@ -203,6 +204,16 @@
         }
         const LOC = loadLoc();
         const TZ = LOC.tz;
+        // ---------- Language ----------
+        let LANG = "en";
+        try { LANG = localStorage.getItem("wx_lang") || ""; } catch (e) {}
+        if (["en", "fr", "de", "th"].indexOf(LANG) < 0) {
+            const nl = (navigator.language || "en").slice(0, 2).toLowerCase();
+            LANG = ["fr", "de", "th"].indexOf(nl) >= 0 ? nl : "en";
+        }
+        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH" })[LANG];
+        document.documentElement.lang = LANG;
+
         const API_URL = "https://api.open-meteo.com/v1/forecast"
             + "?latitude=" + LOC.lat + "&longitude=" + LOC.lon + ""
             + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max"
@@ -250,7 +261,7 @@
                 (hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening") + "!";
             document.getElementById("clock").textContent = now.toLocaleTimeString("en-GB", { timeZone: TZ });
             document.getElementById("date").textContent =
-                now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: TZ });
+                now.toLocaleDateString(LOCALE, { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: TZ });
         }
 
         // Index of the current hour inside the hourly arrays (times are Bangkok local time)
@@ -321,7 +332,7 @@
             const labels = ["Today", "Tomorrow", "Following Day"];
             let html = "";
             for (let n = 0; n < 3; n++) {
-                const dateStr = new Date(d.time[n] + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const dateStr = new Date(d.time[n] + "T00:00:00").toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
                 const periods = wetPeriods(h, d.time[n], n === 0 ? i : 0);
                 const periodsHtml = periods.length ? periods.join("<br>") : "Dry";
                 html += `
@@ -548,8 +559,8 @@
         function vEvent(rows, sc, lead) {
             const box = document.getElementById("v-event");
             if (sc.score >= V_EVENT_BELOW) { box.innerHTML = ""; return; }
-            const dl = d => new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-            const dw = d => new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+            const dl = d => new Date(d + "T00:00:00").toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
+            const dw = d => new Date(d + "T00:00:00").toLocaleDateString(LOCALE, { weekday: "short", day: "numeric" });
             const days = rows.map(o => ({ o: o, iss: vIssues(o) })).filter(x => x.iss.length);
             const counts = {};
             days.forEach(x => x.iss.forEach(i => { counts[i.k] = (counts[i.k] || 0) + 1; }));
@@ -700,7 +711,7 @@
                     const c = vCause(o);
                     if (c.big) tally[c.chip] = (tally[c.chip] || 0) + 1;
                     const dlt = o.aRain - o.fRain;
-                    const dl = new Date(o.d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+                    const dl = new Date(o.d + "T00:00:00").toLocaleDateString(LOCALE, { weekday: "short", day: "numeric" });
                     html += "<tr><td>" + dl + "</td>"
                         + "<td>" + (fw ? "🌧" : "☀️") + " " + Math.round(o.fMax) + "° · " + o.fRain.toFixed(1) + " mm</td>"
                         + "<td>" + (aw ? "🌧" : "☀️") + " " + Math.round(o.aMax) + "° · " + o.aRain.toFixed(1) + " mm</td>"
@@ -773,7 +784,7 @@
                 if (q.length < 2) return;
                 list.textContent = "Searching...";
                 try {
-                    const res = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language=en&format=json&name=" + encodeURIComponent(q));
+                    const res = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language=" + LANG + "&format=json&name=" + encodeURIComponent(q));
                     if (!res.ok) throw new Error("HTTP " + res.status);
                     const data = await res.json();
                     const rs = data.results || [];
@@ -819,6 +830,301 @@
                 m.hidden = false;
             }
         } catch (e) {}
+    
+        // ---------- Translations: [English, French, German, Thai] ----------
+        const TR_ROWS = [
+            ["Good Morning!", "Bonjour !", "Guten Morgen!", "สวัสดีตอนเช้า!"],
+            ["Good Afternoon!", "Bon après-midi !", "Guten Tag!", "สวัสดีตอนบ่าย!"],
+            ["Good Evening!", "Bonsoir !", "Guten Abend!", "สวัสดีตอนเย็น!"],
+            ["Hello!", "Bonjour !", "Hallo!", "สวัสดี!"],
+            ["change", "modifier", "ändern", "เปลี่ยน"],
+            ["Loading forecast...", "Chargement des prévisions...", "Vorhersage wird geladen...", "กำลังโหลดพยากรณ์..."],
+            ["Loading...", "Chargement...", "Wird geladen...", "กำลังโหลด..."],
+            ["Next 24 hours", "Prochaines 24 heures", "Nächste 24 Stunden", "24 ชั่วโมงข้างหน้า"],
+            ["Now", "Maintenant", "Jetzt", "ตอนนี้"],
+            ["Now:", "Maintenant :", "Jetzt:", "ตอนนี้:"],
+            ["Next change:", "Prochain changement :", "Nächste Änderung:", "การเปลี่ยนแปลงถัดไป:"],
+            ["from", "à partir de", "ab", "ตั้งแต่"],
+            ["No change expected in the forecast window.", "Aucun changement prévu sur la période.", "Im Vorhersagezeitraum ist keine Änderung zu erwarten.", "ไม่คาดว่าจะมีการเปลี่ยนแปลงในช่วงพยากรณ์"],
+            ["Clear Sky", "Ciel dégagé", "Klarer Himmel", "ท้องฟ้าแจ่มใส"],
+            ["Mainly Clear", "Plutôt dégagé", "Überwiegend klar", "ส่วนใหญ่แจ่มใส"],
+            ["Partly Cloudy", "Partiellement nuageux", "Teils bewölkt", "มีเมฆบางส่วน"],
+            ["Overcast", "Couvert", "Bedeckt", "เมฆมาก"],
+            ["Foggy", "Brouillard", "Nebel", "หมอก"],
+            ["Rime Fog", "Brouillard givrant", "Raureifnebel", "หมอกน้ำค้างแข็ง"],
+            ["Light Drizzle", "Bruine légère", "Leichter Nieselregen", "ฝนปรอยเล็กน้อย"],
+            ["Drizzle", "Bruine", "Nieselregen", "ฝนปรอย"],
+            ["Heavy Drizzle", "Forte bruine", "Starker Nieselregen", "ฝนปรอยหนัก"],
+            ["Slight Rain", "Pluie faible", "Leichter Regen", "ฝนเล็กน้อย"],
+            ["Moderate Rain", "Pluie modérée", "Mäßiger Regen", "ฝนปานกลาง"],
+            ["Heavy Rain", "Forte pluie", "Starker Regen", "ฝนตกหนัก"],
+            ["Light Showers", "Averses légères", "Leichte Schauer", "ฝนตกเป็นระยะเล็กน้อย"],
+            ["Rain Showers", "Averses", "Schauer", "ฝนตกเป็นระยะ"],
+            ["Violent Showers", "Averses violentes", "Heftige Schauer", "ฝนตกหนักเป็นระยะ"],
+            ["Thunderstorm", "Orage", "Gewitter", "พายุฝนฟ้าคะนอง"],
+            ["Thunderstorm + Hail", "Orage avec grêle", "Gewitter mit Hagel", "พายุฝนฟ้าคะนองพร้อมลูกเห็บ"],
+            ["Severe Thunderstorm", "Orage violent", "Schweres Gewitter", "พายุฝนฟ้าคะนองรุนแรง"],
+            ["Today", "Aujourd'hui", "Heute", "วันนี้"],
+            ["Tomorrow", "Demain", "Morgen", "พรุ่งนี้"],
+            ["Following Day", "Après-demain", "Übermorgen", "มะรืนนี้"],
+            ["Low Temp", "Température min.", "Tiefstwert", "อุณหภูมิต่ำสุด"],
+            ["Wet periods", "Périodes de pluie", "Regenphasen", "ช่วงที่มีฝน"],
+            ["Dry", "Sec", "Trocken", "แห้ง"],
+            ["Rain Chance", "Risque de pluie", "Regenwahrscheinlichkeit", "โอกาสฝนตก"],
+            ["Rainfall", "Précipitations", "Niederschlag", "ปริมาณฝน"],
+            ["Max Wind", "Vent max.", "Max. Wind", "ลมแรงสุด"],
+            ["Rain radar", "Radar de pluie", "Regenradar", "เรดาร์ฝน"],
+            ["Windy map", "Carte Windy", "Windy-Karte", "แผนที่ Windy"],
+            ["Radar", "Radar", "Radar", "เรดาร์"],
+            ["Rain forecast", "Prévision de pluie", "Regenvorhersage", "พยากรณ์ฝน"],
+            ["Satellite", "Satellite", "Satellit", "ดาวเทียม"],
+            ["Wind", "Vent", "Wind", "ลม"],
+            ["Weather data by", "Données météo :", "Wetterdaten von", "ข้อมูลสภาพอากาศโดย"],
+            ["· Radar by", "· Radar :", "· Radar von", "· เรดาร์โดย"],
+            ["· Maps ©", "· Cartes ©", "· Karten ©", "· แผนที่ ©"],
+            ["Weather app", "Application météo", "Wetter-App", "แอปสภาพอากาศ"],
+            ["Debian 13 Automation Worker", "Application météo", "Wetter-App", "แอปสภาพอากาศ"],
+            ["Forecast accuracy - last 7 days", "Précision des prévisions – 7 derniers jours", "Vorhersagegenauigkeit – letzte 7 Tage", "ความแม่นยำของพยากรณ์ – 7 วันล่าสุด"],
+            ["1 day ahead", "1 jour avant", "1 Tag voraus", "ล่วงหน้า 1 วัน"],
+            ["2 days ahead", "2 jours avant", "2 Tage voraus", "ล่วงหน้า 2 วัน"],
+            ["3 days ahead", "3 jours avant", "3 Tage voraus", "ล่วงหน้า 3 วัน"],
+            ["Day", "Jour", "Tag", "วัน"],
+            ["Forecast", "Prévision", "Vorhersage", "พยากรณ์"],
+            ["Actual", "Réel", "Tatsächlich", "เกิดจริง"],
+            ["Very high", "Très élevée", "Sehr hoch", "สูงมาก"],
+            ["High", "Élevée", "Hoch", "สูง"],
+            ["Moderate", "Moyenne", "Mittel", "ปานกลาง"],
+            ["Low", "Faible", "Niedrig", "ต่ำ"],
+            ["Ultra low", "Très faible", "Extrem niedrig", "ต่ำมาก"],
+            ["Rain called right:", "Pluie bien prévue :", "Regen richtig vorhergesagt:", "ทายฝนถูก:"],
+            ["Max temp error:", "Erreur sur la température max. :", "Abweichung Höchsttemperatur:", "ความคลาดเคลื่อนอุณหภูมิสูงสุด:"],
+            ["on average", "en moyenne", "im Durchschnitt", "โดยเฉลี่ย"],
+            ["Rain per day: forecast", "Pluie par jour : prévu", "Regen pro Tag: Vorhersage", "ฝนต่อวัน: พยากรณ์"],
+            ["vs actual", "contre réel", "gegenüber tatsächlich", "เทียบกับที่เกิดจริง"],
+            ["Main cause of differences:", "Cause principale des écarts :", "Hauptursache der Abweichungen:", "สาเหตุหลักของความต่าง:"],
+            ["No large differences: everything within model resolution", "Pas d'écart important : tout reste dans la résolution du modèle", "Keine großen Abweichungen: alles innerhalb der Modellauflösung", "ไม่มีความต่างมาก: ทั้งหมดอยู่ในความละเอียดของแบบจำลอง"],
+            ["Low-pressure system", "Système dépressionnaire", "Tiefdrucksystem", "ระบบความกดอากาศต่ำ"],
+            ["Storm cells", "Cellules orageuses", "Gewitterzellen", "เซลล์พายุ"],
+            ["Persistent rain band", "Bande de pluie persistante", "Anhaltendes Regenband", "แนวฝนที่ตกต่อเนื่อง"],
+            ["Heavier showers", "Averses plus fortes", "Stärkere Schauer", "ฝนตกหนักกว่าที่คาด"],
+            ["Rain band shifted", "Bande de pluie déplacée", "Regenband verlagert", "แนวฝนเคลื่อนไปที่อื่น"],
+            ["System weaker than forecast", "Système plus faible que prévu", "System schwächer als vorhergesagt", "ระบบอ่อนกว่าที่พยากรณ์"],
+            ["Within model resolution", "Dans la résolution du modèle", "Innerhalb der Modellauflösung", "อยู่ในความละเอียดของแบบจำลอง"],
+            ["mostly missed rain (forecast dry or light, but rain fell)", "surtout de la pluie non prévue (prévision sèche ou faible, mais il a plu)", "vor allem nicht vorhergesagter Regen (trocken oder leicht vorhergesagt, aber es regnete)", "ส่วนใหญ่เป็นฝนที่พยากรณ์พลาด (พยากรณ์ว่าแห้งหรือฝนเบา แต่ฝนตกจริง)"],
+            ["mostly false alarms (rain forecast, little or none fell)", "surtout de fausses alertes (pluie prévue, peu ou pas tombée)", "vor allem Fehlalarme (Regen vorhergesagt, kaum oder keiner gefallen)", "ส่วนใหญ่เป็นการเตือนฝนเกินจริง (พยากรณ์ว่าฝนตก แต่ตกน้อยหรือไม่ตกเลย)"],
+            ["rain amounts far from what fell", "quantités de pluie très éloignées de la réalité", "Regenmengen weit vom tatsächlichen Wert entfernt", "ปริมาณฝนต่างจากที่ตกจริงมาก"],
+            ["rain arriving at different times than forecast", "pluie arrivée à d'autres heures que prévu", "Regen zu anderen Zeiten als vorhergesagt", "ฝนตกผิดเวลาจากที่พยากรณ์"],
+            ["daytime temperatures off", "températures diurnes inexactes", "Tagestemperaturen weichen ab", "อุณหภูมิกลางวันคลาดเคลื่อน"],
+            ["N", "N", "N", "เหนือ"],
+            ["NE", "NE", "NO", "ตะวันออกเฉียงเหนือ"],
+            ["E", "E", "O", "ตะวันออก"],
+            ["SE", "SE", "SO", "ตะวันออกเฉียงใต้"],
+            ["S", "S", "S", "ใต้"],
+            ["SW", "SO", "SW", "ตะวันตกเฉียงใต้"],
+            ["W", "O", "W", "ตะวันตก"],
+            ["NW", "NO", "NW", "ตะวันตกเฉียงเหนือ"],
+            ["cooler", "plus fraîche", "kühler", "เย็นกว่า"],
+            ["warmer", "plus chaude", "wärmer", "อุ่นกว่า"],
+            ["heavier", "plus forte", "stärker", "หนักกว่า"],
+            ["lighter", "plus faible", "schwächer", "เบากว่า"],
+            ["A short, intense downpour like this is hard for a model to place", "Une averse brève et intense comme celle-ci est difficile à situer pour un modèle", "Ein kurzer, heftiger Guss wie dieser ist für ein Modell schwer zu verorten", "ฝนตกหนักช่วงสั้น ๆ แบบนี้แบบจำลองจับตำแหน่งได้ยาก"],
+            ["The showers most likely formed nearby rather than at this spot", "Les averses se sont probablement formées à proximité plutôt qu'à cet endroit", "Die Schauer bildeten sich wahrscheinlich in der Nähe und nicht genau an diesem Ort", "ฝนน่าจะก่อตัวบริเวณใกล้เคียงมากกว่าตรงจุดนี้"],
+            ["No strong pressure or storm signal in the data", "Aucun signal net de pression ou d'orage dans les données", "Kein deutliches Druck- oder Gewittersignal in den Daten", "ไม่พบสัญญาณความกดอากาศหรือพายุที่ชัดเจนในข้อมูล"],
+            ["Showers in the tropics are small and short-lived, so a model can get the weather pattern right but miss the exact place and hour", "Les averses tropicales sont petites et de courte durée : un modèle peut bien saisir la situation générale tout en manquant le lieu et l'heure exacts", "Schauer in den Tropen sind klein und kurzlebig, daher kann ein Modell die Wetterlage richtig erfassen, aber Ort und Uhrzeit verfehlen", "ฝนในเขตร้อนเป็นเซลล์เล็กและอยู่ไม่นาน แบบจำลองจึงอาจจับรูปแบบอากาศได้ถูกแต่พลาดทั้งตำแหน่งและเวลาที่แน่นอน"],
+            ["While confidence is this low, trust the rain chance % more than a yes/no call, and check the shorter lead-time tabs", "Tant que la confiance est aussi faible, fiez-vous davantage au pourcentage de risque de pluie qu'à un simple oui/non, et consultez les onglets à plus courte échéance", "Solange die Konfidenz so niedrig ist, vertrauen Sie der Regenwahrscheinlichkeit in % mehr als einem Ja/Nein und sehen Sie sich die Reiter mit kürzerem Vorlauf an", "ขณะที่ความเชื่อมั่นต่ำขนาดนี้ ให้เชื่อเปอร์เซ็นต์โอกาสฝนมากกว่าคำตอบว่าฝนตกหรือไม่ และดูแท็บที่ล่วงหน้าสั้นกว่า"],
+            ["Wet day = 1 mm or more", "Jour pluvieux = 1 mm ou plus", "Regentag = 1 mm oder mehr", "วันฝนตก = 1 มม. ขึ้นไป"],
+            ["Actual = Open-Meteo's latest model values, not a rain gauge or radar", "Réel = dernières valeurs du modèle Open-Meteo, pas un pluviomètre ni un radar", "Tatsächlich = aktuellste Modellwerte von Open-Meteo, kein Regenmesser und kein Radar", "เกิดจริง = ค่าล่าสุดจากแบบจำลองของ Open-Meteo ไม่ใช่เครื่องวัดน้ำฝนหรือเรดาร์"],
+            ["Event labels are inferred from pressure, wind, CAPE and rain-intensity data, not confirmed by a weather agency", "Les types d'événements sont déduits de la pression, du vent, du CAPE et de l'intensité des pluies, sans confirmation d'un service météo", "Die Ereignisbezeichnungen werden aus Luftdruck, Wind, CAPE und Regenintensität abgeleitet und nicht von einem Wetterdienst bestätigt", "ประเภทเหตุการณ์สรุปจากความกดอากาศ ลม ค่า CAPE และความแรงของฝน ไม่ได้รับการยืนยันจากหน่วยงานอุตุนิยมวิทยา"],
+            ["Model: ECMWF IFS", "Modèle : ECMWF IFS", "Modell: ECMWF IFS", "แบบจำลอง: ECMWF IFS"],
+            ["\"Actual\" = Open-Meteo's latest model values, not a rain gauge", "« Réel » = dernières valeurs du modèle Open-Meteo, pas un pluviomètre", "„Tatsächlich“ = aktuellste Modellwerte von Open-Meteo, kein Regenmesser", "“เกิดจริง” = ค่าล่าสุดจากแบบจำลองของ Open-Meteo ไม่ใช่เครื่องวัดน้ำฝน"],
+            ["No past-forecast data for this lead time.", "Pas de prévisions passées pour cette échéance.", "Keine früheren Vorhersagen für diesen Vorlauf.", "ไม่มีข้อมูลพยากรณ์ย้อนหลังสำหรับช่วงล่วงหน้านี้"],
+            ["Change location", "Changer de lieu", "Ort ändern", "เปลี่ยนตำแหน่ง"],
+            ["Search a place, e.g. Hat Yai", "Rechercher un lieu, ex. Hat Yai", "Ort suchen, z. B. Hat Yai", "ค้นหาสถานที่ เช่น Hat Yai"],
+            ["Search", "Rechercher", "Suchen", "ค้นหา"],
+            ["Use GPS", "Utiliser le GPS", "GPS verwenden", "ใช้ GPS"],
+            ["Station default", "Lieu par défaut", "Standard-Standort", "ค่าเริ่มต้นของสถานี"],
+            ["Close", "Fermer", "Schließen", "ปิด"],
+            ["Searching...", "Recherche...", "Suche läuft...", "กำลังค้นหา..."],
+            ["Your choice is saved on this device only. \"Station default\" returns to the location set on the server.", "Votre choix n'est enregistré que sur cet appareil. « Lieu par défaut » revient au lieu défini sur le serveur.", "Ihre Auswahl wird nur auf diesem Gerät gespeichert. „Standard-Standort“ kehrt zum auf dem Server festgelegten Ort zurück.", "ตัวเลือกของคุณถูกบันทึกไว้ในอุปกรณ์นี้เท่านั้น \"ค่าเริ่มต้นของสถานี\" จะกลับไปใช้ตำแหน่งที่ตั้งไว้บนเซิร์ฟเวอร์"],
+            ["No match. Try a nearby town or add the country.", "Aucun résultat. Essayez une ville proche ou ajoutez le pays.", "Kein Treffer. Versuchen Sie einen Ort in der Nähe oder fügen Sie das Land hinzu.", "ไม่พบผลลัพธ์ ลองใช้เมืองใกล้เคียงหรือเพิ่มชื่อประเทศ"],
+            ["GPS needs HTTPS, and this page is on plain http, so the browser blocks it. Use search or the station default instead.", "Le GPS nécessite HTTPS et cette page est en http simple, le navigateur le bloque. Utilisez la recherche ou le lieu par défaut.", "GPS benötigt HTTPS, und diese Seite nutzt einfaches http, daher blockiert der Browser es. Nutzen Sie die Suche oder den Standard-Standort.", "GPS ต้องใช้ HTTPS แต่หน้านี้ใช้ http ธรรมดา เบราว์เซอร์จึงบล็อก ให้ใช้การค้นหาหรือค่าเริ่มต้นของสถานีแทน"]
+        ];
+
+        // Sentence templates: [regex, French, German, Thai]. {n} = group n, {@n} = translated group n,
+        // {?n} = prints nothing, and a block of the form  ⟦ ... ⟧  is dropped if a group inside is missing.
+        const TR_RULES_SRC = [
+            [/^\(in (\d+)h( \(tomorrow or later\))?\)$/, "(dans {1} h⟦ (demain ou plus tard){?2}⟧)", "(in {1} Std.⟦ (morgen oder später){?2}⟧)", "(ใน {1} ชม.⟦ (พรุ่งนี้หรือหลังจากนั้น){?2}⟧)"],
+            [/^Weather sync failed \((.*)\)\. Retrying in 1 minute\.\.\.$/, "Échec de la synchronisation météo ({1}). Nouvelle tentative dans 1 minute...", "Wetter-Synchronisierung fehlgeschlagen ({1}). Neuer Versuch in 1 Minute...", "ซิงก์ข้อมูลสภาพอากาศไม่สำเร็จ ({1}) จะลองใหม่ใน 1 นาที..."],
+            [/^Radar unavailable \((.*)\)$/, "Radar indisponible ({1})", "Radar nicht verfügbar ({1})", "ไม่มีข้อมูลเรดาร์ ({1})"],
+            [/^(\d\d:\d\d) \(forecast\)$/, "{1} (prévision)", "{1} (Vorhersage)", "{1} (พยากรณ์)"],
+            [/^(\d days? ahead) · (\d+)$/, "{@1} · {2}", "{@1} · {2}", "{@1} · {2}"],
+            [/^Confidence (\d+)\/100$/, "Confiance {1}/100", "Konfidenz {1}/100", "ความเชื่อมั่น {1}/100"],
+            [/^How much to trust the forecast at this lead time, judged by the last (\d+) days \(rain call 50%, temperature 25%, rain amount 25%\)$/,
+                "Degré de confiance à accorder aux prévisions à cette échéance, évalué sur les {1} derniers jours (pluie oui/non 50 %, température 25 %, quantité de pluie 25 %)",
+                "Wie sehr man der Vorhersage bei diesem Vorlauf trauen kann, bewertet anhand der letzten {1} Tage (Regen ja/nein 50 %, Temperatur 25 %, Regenmenge 25 %)",
+                "ความน่าเชื่อถือของพยากรณ์ที่ล่วงหน้าช่วงนี้ ประเมินจาก {1} วันล่าสุด (ทายฝนถูกหรือไม่ 50% อุณหภูมิ 25% ปริมาณฝน 25%)"],
+            [/^(\d+)\/(\d+) days$/, "{1}/{2} jours", "{1}/{2} Tagen", "{1}/{2} วัน"],
+            [/^Main cause: (.+) \((\d+) of (\d+) days\)$/, "Cause principale : {@1} ({2} jours sur {3})", "Hauptursache: {@1} ({2} von {3} Tagen)", "สาเหตุหลัก: {@1} ({2} จาก {3} วัน)"],
+            [/^(.+) \((\d+) of (\d+) days\)$/, "{@1} ({2} jours sur {3})", "{@1} ({2} von {3} Tagen)", "{@1} ({2} จาก {3} วัน)"],
+            [/^Low-confidence event: (\d days? ahead) forecasts, (.+)$/, "Événement à faible confiance : prévisions faites {@1}, {2}", "Ereignis mit niedriger Konfidenz: Vorhersagen {@1}, {2}", "เหตุการณ์ความเชื่อมั่นต่ำ: พยากรณ์{@1} {2}"],
+            [/^Rain was called correctly on only (\d+) of (\d+) days, and the max temperature was off by ±(\S+)°C on average$/,
+                "La pluie n'a été bien prévue que {1} jours sur {2}, et la température max. s'est écartée de ±{3} °C en moyenne",
+                "Der Regen wurde nur an {1} von {2} Tagen richtig vorhergesagt, und die Höchsttemperatur wich im Schnitt um ±{3} °C ab",
+                "ทายฝนถูกเพียง {1} จาก {2} วัน และอุณหภูมิสูงสุดคลาดเคลื่อนเฉลี่ย ±{3}°C"],
+            [/^Pressure fell (\S+) hPa below the week's average(?:, with gusts up to (\d+) km\/h from the (\w+))?$/,
+                "La pression a chuté de {1} hPa sous la moyenne de la semaine⟦, avec des rafales jusqu'à {2} km/h (direction {@3})⟧",
+                "Der Luftdruck fiel um {1} hPa unter den Wochendurchschnitt⟦, mit Böen bis {2} km/h aus {@3}⟧",
+                "ความกดอากาศลดลง {1} hPa ต่ำกว่าค่าเฉลี่ยของสัปดาห์⟦ ลมกระโชกสูงสุด {2} กม./ชม. ทิศ{@3}⟧"],
+            [/^This points to a low-pressure system \(possibly a depression\) stronger or closer than forecast: (\S+) mm more rain fell$/,
+                "Cela indique un système dépressionnaire (peut-être une dépression) plus fort ou plus proche que prévu : {1} mm de pluie en plus",
+                "Das deutet auf ein Tiefdrucksystem (möglicherweise eine Depression) hin, das stärker oder näher war als vorhergesagt: {1} mm mehr Regen fielen",
+                "บ่งชี้ว่ามีระบบความกดอากาศต่ำ (อาจเป็นหย่อมความกดอากาศต่ำ) ที่แรงหรืออยู่ใกล้กว่าที่พยากรณ์ ฝนตกมากกว่าคาด {1} มม."],
+            [/^Intense downpours: up to (\S+) mm\/h(?: near (\d\d:\d\d))?(?:, very unstable air \(CAPE (\d+) J\/kg\))?(?:, thunderstorm conditions for (\d+) h)?$/,
+                "Fortes averses : jusqu'à {1} mm/h⟦ vers {2}⟧⟦, air très instable (CAPE {3} J/kg)⟧⟦, orage pendant {4} h⟧",
+                "Heftige Regenfälle: bis zu {1} mm/h⟦ gegen {2} Uhr⟧⟦, sehr labile Luft (CAPE {3} J/kg)⟧⟦, Gewitterbedingungen für {4} Std.⟧",
+                "ฝนตกหนัก: สูงสุด {1} มม./ชม.⟦ ราว {2} น.⟧⟦ อากาศไม่เสถียรมาก (CAPE {3} J/kg)⟧⟦ มีพายุฟ้าคะนอง {4} ชม.⟧"],
+            [/^Storm cells are smaller than a model grid cell, so their place and strength are hard to forecast \((\S+) mm more than expected\)$/,
+                "Les cellules orageuses sont plus petites qu'une maille du modèle : leur position et leur intensité sont difficiles à prévoir ({1} mm de plus que prévu)",
+                "Gewitterzellen sind kleiner als eine Modellgitterzelle, daher sind Ort und Stärke schwer vorherzusagen ({1} mm mehr als erwartet)",
+                "เซลล์พายุมีขนาดเล็กกว่าช่องกริดของแบบจำลอง จึงพยากรณ์ตำแหน่งและความแรงได้ยาก (ฝนมากกว่าคาด {1} มม.)"],
+            [/^Rain fell in (\d+) of 24 hours: a slow-moving rain band or trough stayed longer than forecast \(\+(\S+) mm\)$/,
+                "Il a plu pendant {1} heures sur 24 : une bande de pluie ou un creux dépressionnaire lent est resté plus longtemps que prévu (+{2} mm)",
+                "Es regnete in {1} von 24 Stunden: ein langsam ziehendes Regenband oder ein Trog blieb länger als vorhergesagt (+{2} mm)",
+                "ฝนตก {1} จาก 24 ชั่วโมง: แนวฝนหรือร่องความกดอากาศต่ำเคลื่อนตัวช้าและค้างนานกว่าที่พยากรณ์ (+{2} มม.)"],
+            [/^Showers were heavier than the model expected \(\+(\S+) mm\)$/, "Les averses ont été plus fortes que prévu par le modèle (+{1} mm)", "Die Schauer waren stärker als vom Modell erwartet (+{1} mm)", "ฝนตกหนักกว่าที่แบบจำลองคาด (+{1} มม.)"],
+            [/^Forecast (\S+) mm did not reach this spot; the rain band most likely passed or formed nearby$/,
+                "Les {1} mm prévus ne sont pas arrivés ici ; la bande de pluie est probablement passée ou s'est formée à côté",
+                "Die vorhergesagten {1} mm erreichten diesen Ort nicht; das Regenband zog vermutlich vorbei oder bildete sich in der Nähe",
+                "ฝน {1} มม. ที่พยากรณ์ไม่ได้ตกที่จุดนี้ แนวฝนน่าจะเคลื่อนผ่านหรือก่อตัวบริเวณใกล้เคียง"],
+            [/^Less rain than forecast \(−(\S+) mm\)(; no pressure drop was seen, so the expected system stayed weak or tracked away)?$/,
+                "Moins de pluie que prévu (−{1} mm)⟦ ; aucune baisse de pression observée, le système attendu est resté faible ou s'est éloigné{?2}⟧",
+                "Weniger Regen als vorhergesagt (−{1} mm)⟦; kein Druckabfall beobachtet, das erwartete System blieb schwach oder zog ab{?2}⟧",
+                "ฝนน้อยกว่าที่พยากรณ์ (−{1} มม.)⟦ ไม่พบความกดอากาศลดลง ระบบที่คาดไว้จึงอ่อนหรือเคลื่อนไปทางอื่น{?2}⟧"],
+            [/^Max temperature was (\S+)°C (cooler|warmer) than forecast( \(cloud and rain cooling\))?$/,
+                "Température max. {@2} de {1} °C que prévu⟦ (refroidissement dû aux nuages et à la pluie){?3}⟧",
+                "Höchsttemperatur {1} °C {@2} als vorhergesagt⟦ (Abkühlung durch Wolken und Regen){?3}⟧",
+                "อุณหภูมิสูงสุด{@2}ที่พยากรณ์ {1}°C⟦ (เมฆและฝนทำให้อุณหภูมิลดลง){?3}⟧"],
+            [/^Missed rain: (\S+) mm forecast but (\S+) mm fell(?:, peaking near (\d\d:\d\d) \((\S+) mm\/h\))?$/,
+                "Pluie non prévue : {1} mm prévus mais {2} mm tombés⟦, avec un pic vers {3} ({4} mm/h)⟧",
+                "Verpasster Regen: {1} mm vorhergesagt, aber {2} mm gefallen⟦, Spitze gegen {3} Uhr ({4} mm/h)⟧",
+                "ฝนที่พยากรณ์พลาด: พยากรณ์ {1} มม. แต่ตกจริง {2} มม.⟦ สูงสุดราว {3} น. ({4} มม./ชม.)⟧"],
+            [/^False alarm: (\S+) mm forecast but only (\S+) mm fell$/, "Fausse alerte : {1} mm prévus mais seulement {2} mm tombés", "Fehlalarm: {1} mm vorhergesagt, aber nur {2} mm gefallen", "เตือนฝนเกินจริง: พยากรณ์ {1} มม. แต่ตกจริงเพียง {2} มม."],
+            [/^Rain amount off: (\S+) mm forecast, (\S+) mm fell \((heavier|lighter) than expected\)$/,
+                "Quantité de pluie inexacte : {1} mm prévus, {2} mm tombés ({@3} que prévu)",
+                "Regenmenge daneben: {1} mm vorhergesagt, {2} mm gefallen ({@3} als erwartet)",
+                "ปริมาณฝนคลาดเคลื่อน: พยากรณ์ {1} มม. ตกจริง {2} มม. ({@3}ที่คาด)"],
+            [/^Timing off: rain expected to peak near (\d\d:\d\d) but peaked near (\d\d:\d\d)$/,
+                "Horaire décalé : pic de pluie attendu vers {1} mais observé vers {2}",
+                "Zeitlich daneben: Regenspitze gegen {1} Uhr erwartet, tatsächlich gegen {2} Uhr",
+                "เวลาคลาดเคลื่อน: คาดว่าฝนแรงสุดราว {1} น. แต่เกิดจริงราว {2} น."],
+            [/^Max temperature off by (\S+)°C \((\d+)° forecast, (\d+)° actual, (cooler|warmer) than expected\)$/,
+                "Température max. décalée de {1} °C ({2}° prévus, {3}° réels, {@4} que prévu)",
+                "Höchsttemperatur um {1} °C daneben ({2}° vorhergesagt, {3}° tatsächlich, {@4} als erwartet)",
+                "อุณหภูมิสูงสุดคลาดเคลื่อน {1}°C (พยากรณ์ {2}° เกิดจริง {3}° {@4}ที่คาด)"],
+            [/^Search failed \((.*)\)$/, "Échec de la recherche ({1})", "Suche fehlgeschlagen ({1})", "ค้นหาไม่สำเร็จ ({1})"],
+            [/^Location unavailable \((.*)\)$/, "Position indisponible ({1})", "Standort nicht verfügbar ({1})", "ไม่สามารถระบุตำแหน่ง ({1})"],
+            [/^No data for this lead time \((.*)\)$/, "Pas de données pour cette échéance ({1})", "Keine Daten für diesen Vorlauf ({1})", "ไม่มีข้อมูลสำหรับช่วงล่วงหน้านี้ ({1})"],
+            [/^Accuracy data unavailable \((.*)\)$/, "Données de précision indisponibles ({1})", "Genauigkeitsdaten nicht verfügbar ({1})", "ไม่มีข้อมูลความแม่นยำ ({1})"],
+            [/^(?:Weather app|Debian 13 Automation Worker) • Forecast updated (.+)$/, "Application météo • Prévisions mises à jour à {1}", "Wetter-App • Vorhersage aktualisiert um {1}", "แอปสภาพอากาศ • อัปเดตพยากรณ์เมื่อ {1}"]
+        ];
+
+        const TR_IDX = ({ fr: 1, de: 2, th: 3 })[LANG];
+        const TR_DICT = {};
+        const TR_RULES = [];
+        if (TR_IDX) {
+            TR_ROWS.forEach(r => { TR_DICT[r[0]] = r[TR_IDX]; });
+            TR_RULES_SRC.forEach(r => { TR_RULES.push({ rx: r[0], tpl: r[TR_IDX] }); });
+        }
+
+        function trFill(tpl, m) {
+            tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
+                const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
+                return ids.every(i => m[i] !== undefined) ? inner : "";
+            });
+            return tpl.replace(/\{([?@]?)(\d+)\}/g, (all, f, i) => {
+                const v = m[parseInt(i, 10)];
+                if (f === "?" || v === undefined) return "";
+                return f === "@" ? trAny(v) : v;
+            });
+        }
+
+        function trAny(s) {
+            if (TR_DICT[s] !== undefined) return TR_DICT[s];
+            for (let i = 0; i < TR_RULES.length; i++) {
+                const m = s.match(TR_RULES[i].rx);
+                if (m) return trFill(TR_RULES[i].tpl, m);
+            }
+            const em = s.match(/^(\S+) (.+)$/);
+            if (em && !/[A-Za-z0-9]/.test(em[1])) {
+                const r = trAny(em[2]);
+                return r !== em[2] ? em[1] + " " + r : s;
+            }
+            if (/[^.]\.$/.test(s)) {
+                const body = s.slice(0, -1);
+                const out = trAny(body);
+                return out !== body ? (LANG === "th" ? out : out + ".") : s;
+            }
+            const parts = s.split(/\.\s+(?=[A-Z])/);
+            if (parts.length > 1) {
+                const out = parts.map(p => trAny(p));
+                return out.some((o, i) => o !== parts[i]) ? out.join(LANG === "th" ? " " : ". ") : s;
+            }
+            return s;
+        }
+
+        const trSeen = new WeakMap();
+        function trNode(n) {
+            const par = n.parentNode;
+            if (!par || par.nodeName === "SCRIPT" || par.nodeName === "STYLE") return;
+            const cur = n.data;
+            const rec = trSeen.get(n);
+            const en = (rec && rec.out === cur) ? rec.en : cur;
+            let out = en;
+            const core = en.trim();
+            if (core) {
+                const t = trAny(core);
+                if (t !== core) out = en.match(/^\s*/)[0] + t + en.match(/\s*$/)[0];
+            }
+            if (out !== cur) n.data = out;
+            trSeen.set(n, { en: en, out: out });
+        }
+
+        function trWalk(root) {
+            if (root.nodeType === 3) { trNode(root); return; }
+            if (root.nodeType !== 1) return;
+            const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const list = [];
+            let n;
+            while ((n = w.nextNode())) list.push(n);
+            list.forEach(trNode);
+        }
+
+        const trObs = new MutationObserver(muts => {
+            trObs.disconnect();
+            muts.forEach(m => {
+                if (m.type === "characterData") trNode(m.target);
+                else m.addedNodes.forEach(trWalk);
+            });
+            trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+        });
+
+        (function () {
+            const ls = document.getElementById("lang-sel");
+            if (ls) {
+                ls.value = LANG;
+                ls.addEventListener("change", () => {
+                    try { localStorage.setItem("wx_lang", ls.value); } catch (e) {}
+                    location.reload();
+                });
+            }
+            if (!TR_IDX) return;
+            const q = document.getElementById("loc-q");
+            if (q) q.placeholder = trAny(q.placeholder);
+            trWalk(document.body);
+            trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ" };
+            document.title = LOC.name.split(",")[0] + " · " + names[LANG];
+        })();
     </script>
 </body>
 </html>
