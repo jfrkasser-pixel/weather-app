@@ -92,6 +92,14 @@
         #loc-results li { padding: 0.6rem 0.5rem; border-top: 1px solid #334155; cursor: pointer; color: #e2e8f0; font-size: 0.9rem; }
         #loc-results li:hover { background: #0f172a; }
         .loc-note { font-size: 0.75rem; color: #64748b; margin-top: 0.5rem; line-height: 1.4; }
+        .v-conf-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; font-size: 0.9rem; color: #e2e8f0; font-weight: 600; }
+        .v-badge { padding: 0.15rem 0.7rem; border-radius: 999px; color: #0f172a; font-weight: 800; font-size: 0.8rem; }
+        .v-bar { height: 8px; background: #0f172a; border-radius: 999px; overflow: hidden; margin-bottom: 0.4rem; }
+        .v-bar div { height: 100%; border-radius: 999px; }
+        .v-event { margin-top: 1rem; padding: 0.9rem 1rem; border: 1px solid #7f1d1d; background: rgba(127,29,29,0.25); border-radius: 1rem; }
+        .v-event-title { font-weight: 800; color: #fca5a5; margin-bottom: 0.4rem; }
+        .v-event p { margin: 0 0 0.5rem; font-size: 0.85rem; color: #e2e8f0; line-height: 1.5; }
+        .v-event ul { margin: 0.25rem 0 0.5rem 1.1rem; padding: 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -145,7 +153,9 @@
                 <button type="button" class="v-btn" data-lead="2">2 days ahead</button>
                 <button type="button" class="v-btn" data-lead="3">3 days ahead</button>
             </div>
+            <div id="v-conf"></div>
             <div id="v-body">Loading...</div>
+            <div id="v-event"></div>
             <div class="v-note" id="v-note">"Actual" = Open-Meteo's latest model values, not a rain gauge.</div>
         </div>
 
@@ -451,12 +461,12 @@
             const a = h.temperature_2m, ar = h.precipitation;
             const map = {};
             h.time.forEach((t, k) => {
-                const d = t.slice(0, 10);
-                const o = map[d] || (map[d] = { d: d, fMax: -99, aMax: -99, fRain: 0, aRain: 0, fOk: 0, aOk: 0 });
+                const d = t.slice(0, 10), hr = parseInt(t.slice(11, 13), 10);
+                const o = map[d] || (map[d] = { d: d, fMax: -99, aMax: -99, fRain: 0, aRain: 0, fOk: 0, aOk: 0, fPk: 0, aPk: 0, fPkH: null, aPkH: null });
                 if (f[k] != null) { o.fMax = Math.max(o.fMax, f[k]); o.fOk++; }
-                if (fr[k] != null) o.fRain += fr[k];
                 if (a[k] != null) { o.aMax = Math.max(o.aMax, a[k]); o.aOk++; }
-                if (ar[k] != null) o.aRain += ar[k];
+                if (fr[k] != null) { o.fRain += fr[k]; if (fr[k] > o.fPk) { o.fPk = fr[k]; o.fPkH = hr; } }
+                if (ar[k] != null) { o.aRain += ar[k]; if (ar[k] > o.aPk) { o.aPk = ar[k]; o.aPkH = hr; } }
             });
             const today = h.time[h.time.length - 1].slice(0, 10);
             return Object.values(map)
@@ -464,17 +474,123 @@
                 .sort((x, y) => (x.d < y.d ? 1 : -1));
         }
 
+        const V_LABEL = { 1: "1 day ahead", 2: "2 days ahead", 3: "3 days ahead" };
+        const V_EVENT_BELOW = 40;   // show the explanation box when the score is under this
+        const V_CAUSE = {
+            missed: "mostly missed rain (forecast dry or light, but rain fell)",
+            alarm: "mostly false alarms (rain forecast, little or none fell)",
+            amount: "rain amounts far from what fell",
+            timing: "rain arriving at different times than forecast",
+            temp: "daytime temperatures off"
+        };
+
+        function p2(n) { return (n < 10 ? "0" : "") + n; }
+
+        function vScore(rows) {
+            const n = rows.length;
+            let hit = 0, err = 0, am = 0;
+            rows.forEach(o => {
+                if ((o.fRain >= 1) === (o.aRain >= 1)) hit++;
+                err += Math.abs(o.fMax - o.aMax);
+                am += 1 - Math.min(1, Math.abs(o.fRain - o.aRain) / Math.max(5, o.fRain, o.aRain));
+            });
+            const sRain = hit / n, sTemp = Math.max(0, 1 - (err / n) / 4), sAmt = am / n;
+            return { n: n, hit: hit, mae: err / n, score: Math.round(100 * (0.5 * sRain + 0.25 * sTemp + 0.25 * sAmt)) };
+        }
+
+        function vRating(score) {
+            if (score >= 85) return { t: "Very high", c: "#22c55e" };
+            if (score >= 70) return { t: "High", c: "#84cc16" };
+            if (score >= 55) return { t: "Moderate", c: "#eab308" };
+            if (score >= 40) return { t: "Low", c: "#f97316" };
+            return { t: "Ultra low", c: "#ef4444" };
+        }
+
+        function vIssues(o) {
+            const out = [];
+            const fw = o.fRain >= 1, aw = o.aRain >= 1;
+            const hh = x => p2(x) + ":00";
+            if (!fw && aw) {
+                out.push({ k: "missed", sev: 3 + o.aRain / 10, t: "Missed rain: " + o.fRain.toFixed(1) + " mm forecast but " + o.aRain.toFixed(1) + " mm fell"
+                    + (o.aPkH != null ? ", peaking near " + hh(o.aPkH) + " (" + o.aPk.toFixed(1) + " mm/h)" : "")
+                    + (o.aPk >= 10 ? ". A short, intense downpour like this is hard for a model to place." : ".") });
+            } else if (fw && !aw) {
+                out.push({ k: "alarm", sev: 2 + o.fRain / 10, t: "False alarm: " + o.fRain.toFixed(1) + " mm forecast but only " + o.aRain.toFixed(1)
+                    + " mm fell. The showers most likely formed nearby rather than at this spot." });
+            } else if (fw && aw) {
+                const hi = Math.max(o.fRain, o.aRain), lo = Math.min(o.fRain, o.aRain);
+                if (hi - lo >= 10 && hi / Math.max(lo, 0.1) >= 2) {
+                    out.push({ k: "amount", sev: 1 + (hi - lo) / 10, t: "Rain amount off: " + o.fRain.toFixed(1) + " mm forecast, " + o.aRain.toFixed(1)
+                        + " mm fell (" + (o.aRain > o.fRain ? "heavier" : "lighter") + " than expected)." });
+                }
+                if (o.fPkH != null && o.aPkH != null && Math.abs(o.fPkH - o.aPkH) >= 6) {
+                    out.push({ k: "timing", sev: 1, t: "Timing off: rain expected to peak near " + hh(o.fPkH) + " but peaked near " + hh(o.aPkH) + "." });
+                }
+            }
+            const dT = o.aMax - o.fMax;
+            if (Math.abs(dT) >= 3) {
+                out.push({ k: "temp", sev: Math.abs(dT) / 2, t: "Max temperature off by " + Math.abs(dT).toFixed(1) + "°C (" + Math.round(o.fMax)
+                    + "° forecast, " + Math.round(o.aMax) + "° actual, " + (dT < 0 ? "cooler" : "warmer") + " than expected)." });
+            }
+            return out;
+        }
+
+        function vEvent(rows, sc, lead) {
+            const box = document.getElementById("v-event");
+            if (sc.score >= V_EVENT_BELOW) { box.innerHTML = ""; return; }
+            const dl = d => new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const dw = d => new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+            const days = rows.map(o => ({ o: o, iss: vIssues(o) })).filter(x => x.iss.length);
+            const counts = {};
+            days.forEach(x => x.iss.forEach(i => { counts[i.k] = (counts[i.k] || 0) + 1; }));
+            const top = Object.keys(counts).sort((x, y) => counts[y] - counts[x])[0];
+            const sev = x => Math.max.apply(null, x.iss.map(i => i.sev));
+            days.sort((x, y) => sev(y) - sev(x));
+            let html = '<div class="v-event"><div class="v-event-title">⚠️ Low-confidence event: ' + V_LABEL[lead] + " forecasts, "
+                + dl(rows[rows.length - 1].d) + " – " + dl(rows[0].d) + "</div>";
+            html += "<p>Rain was called correctly on only " + sc.hit + " of " + sc.n + " days, and the max temperature was off by ±"
+                + sc.mae.toFixed(1) + "°C on average."
+                + (top ? " Main cause: " + V_CAUSE[top] + " (" + counts[top] + " of " + sc.n + " days)." : "") + "</p>";
+            if (days.length) {
+                html += "<ul>";
+                days.slice(0, 3).forEach(x => {
+                    html += "<li><strong>" + dw(x.o.d) + ":</strong> " + x.iss.map(i => i.t).join(" ") + "</li>";
+                });
+                html += "</ul>";
+            }
+            html += "<p>Showers in the tropics are small and short-lived, so a model can get the weather pattern right but miss the exact place and hour. "
+                + "While confidence is this low, trust the rain chance % more than a yes/no call, and check the shorter lead-time tabs.</p></div>";
+            box.innerHTML = html;
+        }
+
         function vRender() {
             const body = document.getElementById("v-body");
+            const conf = document.getElementById("v-conf");
+            const evBox = document.getElementById("v-event");
             try {
-                const rows = vDays(vData, vLead).slice(0, 7);
-                if (!rows.length) { body.textContent = "No past-forecast data for this lead time."; return; }
-                let hit = 0, err = 0, sf = 0, sa = 0;
+                const all = {};
+                [1, 2, 3].forEach(n => {
+                    try {
+                        const r = vDays(vData, n).slice(0, 7);
+                        all[n] = r.length ? { rows: r, sc: vScore(r) } : null;
+                    } catch (e) { all[n] = null; }
+                });
+                document.querySelectorAll(".v-btn").forEach(b => {
+                    const n = parseInt(b.dataset.lead, 10), x = all[n];
+                    b.textContent = V_LABEL[n] + (x ? " · " + x.sc.score : "");
+                });
+                const cur = all[vLead];
+                if (!cur) {
+                    body.textContent = "No past-forecast data for this lead time.";
+                    conf.innerHTML = ""; evBox.innerHTML = "";
+                    return;
+                }
+                const rows = cur.rows, sc = cur.sc, n = rows.length;
+                let sf = 0, sa = 0;
                 let html = '<table class="v-table"><tr><th>Day</th><th>Forecast</th><th>Actual</th><th></th></tr>';
                 rows.forEach(o => {
                     const fw = o.fRain >= 1, aw = o.aRain >= 1, ok = fw === aw;
-                    if (ok) hit++;
-                    err += Math.abs(o.fMax - o.aMax); sf += o.fRain; sa += o.aRain;
+                    sf += o.fRain; sa += o.aRain;
                     const dl = new Date(o.d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
                     html += "<tr><td>" + dl + "</td>"
                         + "<td>" + (fw ? "🌧" : "☀️") + " " + Math.round(o.fMax) + "° · " + o.fRain.toFixed(1) + " mm</td>"
@@ -482,13 +598,19 @@
                         + "<td>" + (ok ? "✅" : "❌") + "</td></tr>";
                 });
                 html += "</table>";
-                const n = rows.length;
-                html += '<div class="v-sum">Rain called right: <strong>' + hit + "/" + n + " days</strong><br>"
-                    + "Max temp error: <strong>±" + (err / n).toFixed(1) + "°C</strong> on average<br>"
+                html += '<div class="v-sum">Rain called right: <strong>' + sc.hit + "/" + n + " days</strong><br>"
+                    + "Max temp error: <strong>±" + sc.mae.toFixed(1) + "°C</strong> on average<br>"
                     + "Rain per day: forecast <strong>" + (sf / n).toFixed(1) + " mm</strong> vs actual <strong>" + (sa / n).toFixed(1) + " mm</strong></div>";
                 body.innerHTML = html;
+                const r = vRating(sc.score);
+                conf.innerHTML = '<div class="v-conf-row"><span class="v-badge" style="background:' + r.c + '">' + r.t + "</span><span>Confidence "
+                    + sc.score + '/100</span></div><div class="v-bar"><div style="width:' + sc.score + "%;background:" + r.c + '"></div></div>'
+                    + '<div class="v-note" style="margin:0 0 0.75rem">How much to trust the forecast at this lead time, judged by the last '
+                    + n + " days (rain call 50%, temperature 25%, rain amount 25%).</div>";
+                vEvent(rows, sc, vLead);
             } catch (e) {
                 body.textContent = "No data for this lead time (" + e.message + ").";
+                conf.innerHTML = ""; evBox.innerHTML = "";
             }
             document.getElementById("v-note").textContent =
                 "Wet day = 1 mm or more. Actual = Open-Meteo's latest model values, not a rain gauge." + vModel;
