@@ -120,6 +120,7 @@
         .sm-next { margin-top: 0.8rem; font-size: 0.88rem; color: #cbd5e1; text-align: center; font-weight: 600; }
         .sm-note { margin-top: 0.5rem; font-size: 0.7rem; color: #64748b; text-align: center; line-height: 1.4; }
         button, select, input { font-family: inherit; }
+        html[lang="zh"] body, html[lang="zh"] button, html[lang="zh"] select, html[lang="zh"] input { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -128,7 +129,7 @@
     <div class="container">
         <div class="header-card">
             <h1 id="greeting">Hello!</h1>
-            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option></select></div>
+            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option><option value="zh">中文</option><option value="ru">Русский</option></select></div>
             <div class="time" id="clock">--:--:--</div>
             <div class="date" id="date"></div>
         </div>
@@ -223,11 +224,11 @@
         // ---------- Language ----------
         let LANG = "en";
         try { LANG = localStorage.getItem("wx_lang") || ""; } catch (e) {}
-        if (["en", "fr", "de", "th"].indexOf(LANG) < 0) {
+        if (["en", "fr", "de", "th", "zh", "ru"].indexOf(LANG) < 0) {
             const nl = (navigator.language || "en").slice(0, 2).toLowerCase();
-            LANG = ["fr", "de", "th"].indexOf(nl) >= 0 ? nl : "en";
+            LANG = ["fr", "de", "th", "zh", "ru"].indexOf(nl) >= 0 ? nl : "en";
         }
-        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH" })[LANG];
+        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH", zh: "zh-CN", ru: "ru-RU" })[LANG];
         document.documentElement.lang = LANG;
 
         const API_URL = "https://api.open-meteo.com/v1/forecast"
@@ -1064,12 +1065,215 @@
             [/^(?:Weather app|Debian 13 Automation Worker) • Forecast updated (.+)$/, "Application météo • Prévisions mises à jour à {1}", "Wetter-App • Vorhersage aktualisiert um {1}", "แอปสภาพอากาศ • อัปเดตพยากรณ์เมื่อ {1}"]
         ];
 
-        const TR_IDX = ({ fr: 1, de: 2, th: 3 })[LANG];
+        const TR_IDX = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5 })[LANG];
         const TR_DICT = {};
         const TR_RULES = [];
         if (TR_IDX) {
-            TR_ROWS.forEach(r => { TR_DICT[r[0]] = r[TR_IDX]; });
-            TR_RULES_SRC.forEach(r => { TR_RULES.push({ rx: r[0], tpl: r[TR_IDX] }); });
+            TR_ROWS.forEach(r => { if (r[TR_IDX] !== undefined) TR_DICT[r[0]] = r[TR_IDX]; });
+            TR_RULES_SRC.forEach(r => { if (r[TR_IDX] !== undefined) TR_RULES.push({ rx: r[0], tpl: r[TR_IDX] }); });
+        }
+
+        // ---------- Mandarin (zh) and Russian (ru) ----------
+        const TR_EXTRA_ROWS = {
+            "Good Morning!": ["早上好！", "Доброе утро!"],
+            "Good Afternoon!": ["下午好！", "Добрый день!"],
+            "Good Evening!": ["晚上好！", "Добрый вечер!"],
+            "Hello!": ["你好！", "Здравствуйте!"],
+            "change": ["更改", "изменить"],
+            "Loading forecast...": ["正在加载预报...", "Загрузка прогноза..."],
+            "Loading...": ["加载中...", "Загрузка..."],
+            "Next 24 hours": ["未来 24 小时", "Ближайшие 24 часа"],
+            "Now": ["现在", "Сейчас"],
+            "Now:": ["现在：", "Сейчас:"],
+            "Next change:": ["下次变化：", "Следующая перемена:"],
+            "from": ["自", "с"],
+            "No change expected in the forecast window.": ["预报时段内预计没有变化。", "В пределах прогноза изменений не ожидается."],
+            "Clear Sky": ["晴朗", "Ясное небо"],
+            "Mainly Clear": ["大部晴朗", "Преимущественно ясно"],
+            "Partly Cloudy": ["局部多云", "Переменная облачность"],
+            "Overcast": ["阴天", "Пасмурно"],
+            "Foggy": ["有雾", "Туман"],
+            "Rime Fog": ["冻雾", "Туман с изморозью"],
+            "Light Drizzle": ["小毛毛雨", "Слабая морось"],
+            "Drizzle": ["毛毛雨", "Морось"],
+            "Heavy Drizzle": ["大毛毛雨", "Сильная морось"],
+            "Slight Rain": ["小雨", "Небольшой дождь"],
+            "Moderate Rain": ["中雨", "Умеренный дождь"],
+            "Heavy Rain": ["大雨", "Сильный дождь"],
+            "Light Showers": ["小阵雨", "Небольшие ливни"],
+            "Rain Showers": ["阵雨", "Ливни"],
+            "Violent Showers": ["强阵雨", "Очень сильные ливни"],
+            "Thunderstorm": ["雷暴", "Гроза"],
+            "Thunderstorm + Hail": ["雷暴伴冰雹", "Гроза с градом"],
+            "Severe Thunderstorm": ["强雷暴", "Сильная гроза"],
+            "Today": ["今天", "Сегодня"],
+            "Tomorrow": ["明天", "Завтра"],
+            "Following Day": ["后天", "Послезавтра"],
+            "Low Temp": ["最低气温", "Мин. температура"],
+            "Wet periods": ["降雨时段", "Периоды дождя"],
+            "Dry": ["无雨", "Сухо"],
+            "Rain Chance": ["降雨概率", "Вероятность дождя"],
+            "Rainfall": ["降雨量", "Осадки"],
+            "Max Wind": ["最大风速", "Макс. ветер"],
+            "Rain radar": ["雨量雷达", "Радар осадков"],
+            "Windy map": ["Windy 地图", "Карта Windy"],
+            "Radar": ["雷达", "Радар"],
+            "Rain forecast": ["降雨预报", "Прогноз дождя"],
+            "Satellite": ["卫星", "Спутник"],
+            "Wind": ["风", "Ветер"],
+            "Weather data by": ["天气数据来源：", "Данные о погоде:"],
+            "· Radar by": ["· 雷达：", "· Радар:"],
+            "· Maps ©": ["· 地图 ©", "· Карты ©"],
+            "Weather app": ["天气应用", "Погодное приложение"],
+            "Debian 13 Automation Worker": ["天气应用", "Погодное приложение"],
+            "Forecast accuracy - last 7 days": ["预报准确度 – 最近 7 天", "Точность прогноза – последние 7 дней"],
+            "1 day ahead": ["提前 1 天", "за 1 день"],
+            "2 days ahead": ["提前 2 天", "за 2 дня"],
+            "3 days ahead": ["提前 3 天", "за 3 дня"],
+            "Day": ["日期", "День"],
+            "Forecast": ["预报", "Прогноз"],
+            "Actual": ["实况", "Факт"],
+            "Very high": ["非常高", "Очень высокая"],
+            "High": ["高", "Высокая"],
+            "Moderate": ["中等", "Средняя"],
+            "Low": ["低", "Низкая"],
+            "Ultra low": ["极低", "Крайне низкая"],
+            "Rain called right:": ["降雨判断正确：", "Дождь угадан:"],
+            "Max temp error:": ["最高气温误差：", "Ошибка макс. температуры:"],
+            "on average": ["平均", "в среднем"],
+            "Rain per day: forecast": ["每日降雨：预报", "Осадки за сутки: прогноз"],
+            "vs actual": ["对比实况", "против факта"],
+            "Main cause of differences:": ["差异的主要原因：", "Основная причина расхождений:"],
+            "No large differences: everything within model resolution": ["没有明显差异：全部在模式分辨率范围内", "Крупных расхождений нет: всё в пределах разрешения модели"],
+            "Low-pressure system": ["低压系统", "Область низкого давления"],
+            "Storm cells": ["风暴单体", "Грозовые ячейки"],
+            "Persistent rain band": ["持续性雨带", "Устойчивая полоса дождей"],
+            "Heavier showers": ["更强的阵雨", "Более сильные ливни"],
+            "Rain band shifted": ["雨带偏移", "Полоса дождей сместилась"],
+            "System weaker than forecast": ["系统比预报偏弱", "Система слабее прогноза"],
+            "Within model resolution": ["在模式分辨率范围内", "В пределах разрешения модели"],
+            "mostly missed rain (forecast dry or light, but rain fell)": ["多为漏报降雨（预报无雨或雨小，实际下了雨）", "в основном пропущенный дождь (прогноз — сухо или слабо, но дождь прошёл)"],
+            "mostly false alarms (rain forecast, little or none fell)": ["多为空报（预报有雨，实际几乎没下）", "в основном ложные тревоги (дождь прогнозировался, а выпало мало или ничего)"],
+            "rain amounts far from what fell": ["雨量与实况相差很大", "количество осадков сильно отличалось от фактического"],
+            "rain arriving at different times than forecast": ["降雨时间与预报不同", "дождь пришёл в другое время, чем в прогнозе"],
+            "daytime temperatures off": ["白天气温有偏差", "дневная температура не совпала"],
+            "N": ["北", "С"], "NE": ["东北", "СВ"], "E": ["东", "В"], "SE": ["东南", "ЮВ"],
+            "S": ["南", "Ю"], "SW": ["西南", "ЮЗ"], "W": ["西", "З"], "NW": ["西北", "СЗ"],
+            "cooler": ["偏低", "ниже"],
+            "warmer": ["偏高", "выше"],
+            "heavier": ["更大", "сильнее"],
+            "lighter": ["更小", "слабее"],
+            "A short, intense downpour like this is hard for a model to place": ["这种短时强降雨，模式很难确定其位置", "Такой короткий сильный ливень модели трудно привязать к месту"],
+            "The showers most likely formed nearby rather than at this spot": ["阵雨很可能在附近形成，而不是在此处", "Ливни, скорее всего, возникли поблизости, а не в этой точке"],
+            "No strong pressure or storm signal in the data": ["数据中没有明显的气压或风暴信号", "В данных нет явного сигнала по давлению или грозам"],
+            "Showers in the tropics are small and short-lived, so a model can get the weather pattern right but miss the exact place and hour": ["热带阵雨范围小、持续时间短，因此模式可能判断对了天气形势，却错过确切的地点和时间", "Ливни в тропиках невелики и недолговечны, поэтому модель может верно уловить общую картину, но ошибиться в точном месте и часе"],
+            "While confidence is this low, trust the rain chance % more than a yes/no call, and check the shorter lead-time tabs": ["在可信度这么低时，请更多参考降雨概率百分比，而不是“会下/不会下”的判断，并查看提前时间更短的标签页", "Пока уверенность так низка, больше доверяйте проценту вероятности дождя, чем ответу «да/нет», и смотрите вкладки с меньшей заблаговременностью"],
+            "Wet day = 1 mm or more": ["降雨日 = 1 毫米或以上", "Дождливый день = 1 мм и более"],
+            "Actual = Open-Meteo's latest model values, not a rain gauge or radar": ["实况 = Open-Meteo 的最新模式数值，不是雨量计或雷达数据", "Факт = последние модельные значения Open-Meteo, а не данные дождемера или радара"],
+            "Event labels are inferred from pressure, wind, CAPE and rain-intensity data, not confirmed by a weather agency": ["事件类型由气压、风、CAPE 和降雨强度数据推断而来，并非气象机构确认", "Типы событий выводятся из данных о давлении, ветре, CAPE и интенсивности дождя и не подтверждены метеослужбой"],
+            "Model: ECMWF IFS": ["模式：ECMWF IFS", "Модель: ECMWF IFS"],
+            "\"Actual\" = Open-Meteo's latest model values, not a rain gauge": ["“实况” = Open-Meteo 的最新模式数值，不是雨量计数据", "«Факт» = последние модельные значения Open-Meteo, а не данные дождемера"],
+            "No past-forecast data for this lead time.": ["此提前量没有历史预报数据。", "Нет прошлых прогнозов для этой заблаговременности."],
+            "Change location": ["更改位置", "Сменить местоположение"],
+            "Search a place, e.g. Hat Yai": ["搜索地点，例如 Hat Yai", "Поиск места, например Hat Yai"],
+            "Search": ["搜索", "Поиск"],
+            "Use GPS": ["使用 GPS", "Использовать GPS"],
+            "Station default": ["站点默认", "По умолчанию"],
+            "Close": ["关闭", "Закрыть"],
+            "Searching...": ["正在搜索...", "Поиск..."],
+            "Your choice is saved on this device only. \"Station default\" returns to the location set on the server.": ["您的选择仅保存在此设备上。“站点默认”将恢复为服务器上设置的位置。", "Ваш выбор сохраняется только на этом устройстве. «По умолчанию» возвращает местоположение, заданное на сервере."],
+            "No match. Try a nearby town or add the country.": ["没有找到匹配项。请尝试附近的城镇或加上国家名称。", "Совпадений нет. Попробуйте ближайший город или добавьте страну."],
+            "GPS needs HTTPS, and this page is on plain http, so the browser blocks it. Use search or the station default instead.": ["GPS 需要 HTTPS，而此页面使用普通 http，因此浏览器已将其拦截。请改用搜索或站点默认位置。", "GPS требует HTTPS, а эта страница открыта по обычному http, поэтому браузер его блокирует. Используйте поиск или местоположение по умолчанию."],
+            "Sun & Moon": ["太阳与月亮", "Солнце и Луна"],
+            "Illumination": ["月面照亮比例", "Освещённость"],
+            "Sunrise": ["日出", "Восход Солнца"],
+            "Sunset": ["日落", "Закат Солнца"],
+            "Moonrise": ["月出", "Восход Луны"],
+            "Moonset": ["月落", "Заход Луны"],
+            "New Moon": ["新月", "Новолуние"],
+            "Waxing Crescent": ["上蛾眉月", "Растущий серп"],
+            "First Quarter": ["上弦月", "Первая четверть"],
+            "Waxing Gibbous": ["盈凸月", "Прибывающая Луна"],
+            "Full Moon": ["满月", "Полнолуние"],
+            "Waning Gibbous": ["亏凸月", "Убывающая Луна"],
+            "Last Quarter": ["下弦月", "Последняя четверть"],
+            "Waning Crescent": ["下蛾眉月", "Убывающий серп"],
+            "Sunrise and sunset from Open-Meteo. Moon phase, moonrise and moonset are calculated on this page (about ±10 minutes). A dash means no moonrise or moonset on that calendar day.": ["日出日落数据来自 Open-Meteo。月相、月出和月落在本页计算（误差约 ±10 分钟）。短横线表示该日历日没有月出或月落。", "Восход и закат Солнца — Open-Meteo. Фаза Луны, её восход и заход рассчитываются на этой странице (точность около ±10 минут). Прочерк означает, что в этот календарный день Луна не восходит или не заходит."]
+        };
+
+        // [sample sentence that the rule matches, Mandarin template, Russian template]
+        const TR_EXTRA_RULES = [
+            ["(in 3h)", "({1} 小时后⟦ (明天或更晚){?2}⟧)", "(через {1} ч⟦ (завтра или позже){?2}⟧)"],
+            ["Weather sync failed (HTTP 429). Retrying in 1 minute...", "天气同步失败（{1}）。1 分钟后重试...", "Не удалось обновить погоду ({1}). Повтор через 1 минуту..."],
+            ["Radar unavailable (x)", "雷达不可用（{1}）", "Радар недоступен ({1})"],
+            ["15:00 (forecast)", "{1}（预报）", "{1} (прогноз)"],
+            ["2 days ahead · 83", "{@1} · {2}", "{@1} · {2}"],
+            ["Confidence 84/100", "可信度 {1}/100", "Уверенность {1}/100"],
+            ["How much to trust the forecast at this lead time, judged by the last 7 days (rain call 50%, temperature 25%, rain amount 25%)",
+                "对该提前量下预报的信任程度，依据最近 {1} 天评估（降雨判断 50%，气温 25%，雨量 25%）",
+                "Насколько можно доверять прогнозу при такой заблаговременности, по итогам последних {1} дн. (угадан дождь — 50 %, температура — 25 %, количество осадков — 25 %)"],
+            ["7/7 days", "{1}/{2} 天", "{1} из {2} дн."],
+            ["Main cause: Storm cells (3 of 7 days)", "主要原因：{@1}（{3} 天中有 {2} 天）", "Основная причина: {@1} ({2} из {3} дн.)"],
+            ["Storm cells (3 of 7 days)", "{@1}（{3} 天中有 {2} 天）", "{@1} ({2} из {3} дн.)"],
+            ["Low-confidence event: 1 day ahead forecasts, Oct 24 – Oct 30", "低可信度事件：{@1}的预报，{2}", "Событие с низкой уверенностью: прогнозы {@1}, {2}"],
+            ["Rain was called correctly on only 3 of 7 days, and the max temperature was off by ±1.2°C on average",
+                "{2} 天中仅有 {1} 天正确预报了降雨，最高气温平均偏差 ±{3}°C",
+                "Дождь был предсказан верно только в {1} из {2} дней, максимальная температура в среднем отличалась на ±{3} °C"],
+            ["Pressure fell 4.6 hPa below the week's average, with gusts up to 48 km/h from the NE",
+                "气压比本周平均值低 {1} hPa⟦，阵风最高 {2} km/h（{@3}风）⟧",
+                "Давление было на {1} гПа ниже среднего за неделю⟦, порывы ветра до {2} км/ч (направление: {@3})⟧"],
+            ["This points to a low-pressure system (possibly a depression) stronger or closer than forecast: 10.5 mm more rain fell",
+                "这表明有比预报更强或更近的低压系统（可能是低气压）：多下了 {1} mm 雨",
+                "Это указывает на область низкого давления (возможно, депрессию), более сильную или более близкую, чем прогнозировалось: выпало на {1} мм осадков больше"],
+            ["Intense downpours: up to 12.0 mm/h near 15:00, very unstable air (CAPE 1500 J/kg), thunderstorm conditions for 2 h",
+                "强降雨：最高 {1} mm/h⟦，约在 {2}⟧⟦，空气非常不稳定（CAPE {3} J/kg）⟧⟦，雷暴持续 {4} 小时⟧",
+                "Сильные ливни: до {1} мм/ч⟦ около {2}⟧⟦, очень неустойчивый воздух (CAPE {3} Дж/кг)⟧⟦, гроза в течение {4} ч⟧"],
+            ["Storm cells are smaller than a model grid cell, so their place and strength are hard to forecast (10.5 mm more than expected)",
+                "风暴单体比模式网格还小，因此很难预报其位置和强度（比预期多 {1} mm）",
+                "Грозовые ячейки меньше ячейки сетки модели, поэтому их место и силу трудно спрогнозировать (на {1} мм больше ожидаемого)"],
+            ["Rain fell in 14 of 24 hours: a slow-moving rain band or trough stayed longer than forecast (+8.0 mm)",
+                "24 小时中有 {1} 小时在下雨：缓慢移动的雨带或低压槽停留时间比预报更长（+{2} mm）",
+                "Дождь шёл {1} из 24 часов: медленно движущаяся полоса дождей или ложбина задержалась дольше, чем прогнозировалось (+{2} мм)"],
+            ["Showers were heavier than the model expected (+6.0 mm)", "阵雨比模式预期更强（+{1} mm）", "Ливни были сильнее, чем ожидала модель (+{1} мм)"],
+            ["Forecast 12.0 mm did not reach this spot; the rain band most likely passed or formed nearby",
+                "预报的 {1} mm 并未到达此处；雨带很可能擦肩而过或在附近形成",
+                "Прогнозировавшиеся {1} мм сюда не дошли; полоса дождей, скорее всего, прошла мимо или сформировалась рядом"],
+            ["Less rain than forecast (−5.0 mm); no pressure drop was seen, so the expected system stayed weak or tracked away",
+                "降雨比预报少（−{1} mm）⟦；未观测到气压下降，预期的系统可能偏弱或已移走{?2}⟧",
+                "Осадков меньше, чем в прогнозе (−{1} мм)⟦; падения давления не наблюдалось, ожидавшаяся система осталась слабой или ушла в сторону{?2}⟧"],
+            ["Max temperature was 2.5°C cooler than forecast (cloud and rain cooling)",
+                "最高气温比预报{@2} {1}°C⟦（云和降雨导致降温）{?3}⟧",
+                "Максимальная температура была на {1} °C {@2}, чем в прогнозе⟦ (охлаждение из-за облачности и дождя){?3}⟧"],
+            ["Missed rain: 0.4 mm forecast but 22.0 mm fell, peaking near 15:00 (14.0 mm/h)",
+                "漏报降雨：预报 {1} mm，实际下了 {2} mm⟦，峰值约在 {3}（{4} mm/h）⟧",
+                "Пропущенный дождь: прогноз {1} мм, выпало {2} мм⟦, максимум около {3} ({4} мм/ч)⟧"],
+            ["False alarm: 9.3 mm forecast but only 1.8 mm fell", "空报：预报 {1} mm，实际仅下了 {2} mm", "Ложная тревога: прогноз {1} мм, выпало только {2} мм"],
+            ["Rain amount off: 20.0 mm forecast, 40.0 mm fell (heavier than expected)",
+                "雨量偏差：预报 {1} mm，实际下了 {2} mm（比预期{@3}）",
+                "Количество осадков не совпало: прогноз {1} мм, выпало {2} мм ({@3}, чем ожидалось)"],
+            ["Timing off: rain expected to peak near 09:00 but peaked near 17:00",
+                "时间偏差：预计降雨高峰约在 {1}，实际高峰约在 {2}",
+                "Время не совпало: пик дождя ожидался около {1}, а пришёлся на {2}"],
+            ["Max temperature off by 3.5°C (30° forecast, 27° actual, cooler than expected)",
+                "最高气温偏差 {1}°C（预报 {2}°，实况 {3}°，比预期{@4}）",
+                "Максимальная температура отличается на {1} °C (прогноз {2}°, факт {3}°, {@4}, чем ожидалось)"],
+            ["Search failed (x)", "搜索失败（{1}）", "Поиск не удался ({1})"],
+            ["Location unavailable (x)", "无法获取位置（{1}）", "Местоположение недоступно ({1})"],
+            ["No data for this lead time (x)", "此提前量暂无数据（{1}）", "Нет данных для этой заблаговременности ({1})"],
+            ["Accuracy data unavailable (x)", "准确度数据不可用（{1}）", "Данные о точности недоступны ({1})"],
+            ["Weather app • Forecast updated 14:00:00", "天气应用 • 预报更新于 {1}", "Погодное приложение • прогноз обновлён в {1}"],
+            ["Next: 🌑 New Moon · Nov 9", "下一个：{1} {@2} · {3}", "Далее: {1} {@2} · {3}"]
+        ];
+        if (LANG === "zh" || LANG === "ru") {
+            const xi = LANG === "zh" ? 1 : 2;
+            Object.keys(TR_EXTRA_ROWS).forEach(k => { TR_DICT[k] = TR_EXTRA_ROWS[k][xi - 1]; });
+            const byIdx = {};
+            TR_EXTRA_RULES.forEach(x => {
+                for (let i = 0; i < TR_RULES_SRC.length; i++) {
+                    if (TR_RULES_SRC[i][0].test(x[0])) { byIdx[i] = x[xi]; break; }
+                }
+            });
+            TR_RULES_SRC.forEach((r, i) => { if (byIdx[i] !== undefined) TR_RULES.push({ rx: r[0], tpl: byIdx[i] }); });
         }
 
         function trFill(tpl, m) {
@@ -1098,12 +1302,12 @@
             if (/[^.]\.$/.test(s)) {
                 const body = s.slice(0, -1);
                 const out = trAny(body);
-                return out !== body ? (LANG === "th" ? out : out + ".") : s;
+                return out !== body ? (LANG === "th" ? out : out + (LANG === "zh" ? "。" : ".")) : s;
             }
             const parts = s.split(/\.\s+(?=[A-Z])/);
             if (parts.length > 1) {
                 const out = parts.map(p => trAny(p));
-                return out.some((o, i) => o !== parts[i]) ? out.join(LANG === "th" ? " " : ". ") : s;
+                return out.some((o, i) => o !== parts[i]) ? out.join(LANG === "th" ? " " : LANG === "zh" ? "。" : ". ") : s;
             }
             return s;
         }
@@ -1158,7 +1362,7 @@
             if (q) q.placeholder = trAny(q.placeholder);
             trWalk(document.body);
             trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
-            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ" };
+            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ", zh: "气象站", ru: "Метеостанция" };
             document.title = LOC.name.split(",")[0] + " · " + names[LANG];
         })();
     
@@ -1325,6 +1529,14 @@
             fl.rel = "stylesheet";
             fl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap";
             document.head.appendChild(fl);
+        }
+    
+        // Chinese font: downloaded from Google Fonts only for visitors who chose Chinese
+        if (typeof LANG !== "undefined" && LANG === "zh") {
+            const zl = document.createElement("link");
+            zl.rel = "stylesheet";
+            zl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap";
+            document.head.appendChild(zl);
         }
     </script>
 </body>
