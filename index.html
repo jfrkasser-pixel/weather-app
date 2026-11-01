@@ -111,6 +111,14 @@
         .v-delta { font-weight: 700; color: #e2e8f0; margin-left: 0.4rem; font-size: 0.78rem; }
         .v-evtext { margin-top: 0.3rem; }
         .lang-sel { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 0.6rem; padding: 0.1rem 0.4rem; font-size: 0.8rem; margin-left: 0.4rem; }
+        .sm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 0.9rem; }
+        .sm-day { background: #0f172a; border: 1px solid #334155; border-radius: 1rem; padding: 1rem; text-align: center; }
+        .sm-title { color: #38bdf8; font-weight: 700; }
+        .sm-date { color: #64748b; font-size: 0.78rem; font-weight: 600; margin-bottom: 0.4rem; }
+        .sm-moon { font-size: 2.6rem; line-height: 1.15; }
+        .sm-name { font-weight: 700; color: #e2e8f0; margin-bottom: 0.7rem; }
+        .sm-next { margin-top: 0.8rem; font-size: 0.88rem; color: #cbd5e1; text-align: center; font-weight: 600; }
+        .sm-note { margin-top: 0.5rem; font-size: 0.7rem; color: #64748b; text-align: center; line-height: 1.4; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -155,6 +163,13 @@
 
         <div class="forecast-grid" id="forecast-container">
             <div class="day-card" style="grid-column: 1/-1;"><p>Loading forecast...</p></div>
+        </div>
+
+        <div class="strip-card" style="margin-top:1.25rem">
+            <div class="strip-title">Sun &amp; Moon</div>
+            <div id="sunmoon">Loading...</div>
+            <div class="sm-next" id="sm-next"></div>
+            <div class="sm-note">Sunrise and sunset from Open-Meteo. Moon phase, moonrise and moonset are calculated on this page (about ±10 minutes). A dash means no moonrise or moonset on that calendar day.</div>
         </div>
 
         <div class="strip-card" style="margin-top:1.25rem">
@@ -216,7 +231,7 @@
 
         const API_URL = "https://api.open-meteo.com/v1/forecast"
             + "?latitude=" + LOC.lat + "&longitude=" + LOC.lon + ""
-            + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max"
+            + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset"
             + "&hourly=weather_code,temperature_2m,precipitation_probability,precipitation"
             + "&timezone=" + encodeURIComponent(LOC.tz) + "&forecast_days=3";
 
@@ -363,6 +378,7 @@
                 renderBanner(data.hourly, i);
                 renderHourly(data.hourly, i);
                 renderDays(data.daily, data.hourly, i);
+                renderSunMoon(data.daily);
                 document.getElementById("footer").textContent =
                     "Weather app • Forecast updated " + new Date().toLocaleTimeString("en-GB", { timeZone: TZ });
             } catch (e) {
@@ -833,6 +849,24 @@
     
         // ---------- Translations: [English, French, German, Thai] ----------
         const TR_ROWS = [
+            ["Sun & Moon", "Soleil et Lune", "Sonne & Mond", "ดวงอาทิตย์และดวงจันทร์"],
+            ["Illumination", "Illumination", "Beleuchtung", "ส่วนสว่างของดวงจันทร์"],
+            ["Sunrise", "Lever du soleil", "Sonnenaufgang", "พระอาทิตย์ขึ้น"],
+            ["Sunset", "Coucher du soleil", "Sonnenuntergang", "พระอาทิตย์ตก"],
+            ["Moonrise", "Lever de la Lune", "Mondaufgang", "ดวงจันทร์ขึ้น"],
+            ["Moonset", "Coucher de la Lune", "Monduntergang", "ดวงจันทร์ตก"],
+            ["New Moon", "Nouvelle Lune", "Neumond", "จันทร์ดับ (เดือนมืด)"],
+            ["Waxing Crescent", "Premier croissant", "Zunehmende Sichel", "จันทร์เสี้ยวข้างขึ้น"],
+            ["First Quarter", "Premier quartier", "Erstes Viertel", "จันทร์ครึ่งดวงข้างขึ้น"],
+            ["Waxing Gibbous", "Lune gibbeuse croissante", "Zunehmender Dreiviertelmond", "จันทร์ค่อนดวงข้างขึ้น"],
+            ["Full Moon", "Pleine Lune", "Vollmond", "จันทร์เต็มดวง (วันเพ็ญ)"],
+            ["Waning Gibbous", "Lune gibbeuse décroissante", "Abnehmender Dreiviertelmond", "จันทร์ค่อนดวงข้างแรม"],
+            ["Last Quarter", "Dernier quartier", "Letztes Viertel", "จันทร์ครึ่งดวงข้างแรม"],
+            ["Waning Crescent", "Dernier croissant", "Abnehmende Sichel", "จันทร์เสี้ยวข้างแรม"],
+            ["Sunrise and sunset from Open-Meteo. Moon phase, moonrise and moonset are calculated on this page (about ±10 minutes). A dash means no moonrise or moonset on that calendar day.",
+                "Lever et coucher du soleil : Open-Meteo. Phase, lever et coucher de la Lune sont calculés sur cette page (à ±10 minutes environ). Un tiret signifie qu'il n'y a pas de lever ou de coucher de la Lune ce jour-là.",
+                "Sonnenauf- und -untergang von Open-Meteo. Mondphase, Mondauf- und -untergang werden auf dieser Seite berechnet (etwa ±10 Minuten). Ein Strich bedeutet, dass der Mond an diesem Kalendertag nicht auf- oder untergeht.",
+                "เวลาพระอาทิตย์ขึ้นและตกจาก Open-Meteo ส่วนข้างขึ้นข้างแรม เวลาดวงจันทร์ขึ้นและตกคำนวณบนหน้านี้ (คลาดเคลื่อนราว ±10 นาที) เครื่องหมายขีดหมายถึงไม่มีดวงจันทร์ขึ้นหรือตกในวันนั้น"],
             ["Good Morning!", "Bonjour !", "Guten Morgen!", "สวัสดีตอนเช้า!"],
             ["Good Afternoon!", "Bon après-midi !", "Guten Tag!", "สวัสดีตอนบ่าย!"],
             ["Good Evening!", "Bonsoir !", "Guten Abend!", "สวัสดีตอนเย็น!"],
@@ -953,6 +987,7 @@
         // Sentence templates: [regex, French, German, Thai]. {n} = group n, {@n} = translated group n,
         // {?n} = prints nothing, and a block of the form  ⟦ ... ⟧  is dropped if a group inside is missing.
         const TR_RULES_SRC = [
+            [/^Next: (\S+) (.+) · (.+)$/, "Prochaine phase : {1} {@2} · {3}", "Nächste Phase: {1} {@2} · {3}", "ถัดไป: {1} {@2} · {3}"],
             [/^\(in (\d+)h( \(tomorrow or later\))?\)$/, "(dans {1} h⟦ (demain ou plus tard){?2}⟧)", "(in {1} Std.⟦ (morgen oder später){?2}⟧)", "(ใน {1} ชม.⟦ (พรุ่งนี้หรือหลังจากนั้น){?2}⟧)"],
             [/^Weather sync failed \((.*)\)\. Retrying in 1 minute\.\.\.$/, "Échec de la synchronisation météo ({1}). Nouvelle tentative dans 1 minute...", "Wetter-Synchronisierung fehlgeschlagen ({1}). Neuer Versuch in 1 Minute...", "ซิงก์ข้อมูลสภาพอากาศไม่สำเร็จ ({1}) จะลองใหม่ใน 1 นาที..."],
             [/^Radar unavailable \((.*)\)$/, "Radar indisponible ({1})", "Radar nicht verfügbar ({1})", "ไม่มีข้อมูลเรดาร์ ({1})"],
@@ -1125,6 +1160,163 @@
             const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ" };
             document.title = LOC.name.split(",")[0] + " · " + names[LANG];
         })();
+    
+        // ---------- Sun & Moon ----------
+        const SM = (function () {
+            const RAD = Math.PI / 180, DAY = 86400000;
+            const sin = Math.sin, cos = Math.cos;
+            function cent(ms) { return (ms / DAY - 10957.5) / 36525; }
+            function norm(x) { x = x % 360; return x < 0 ? x + 360 : x; }
+
+            // Moon position (abridged Meeus series): ecliptic longitude/latitude in degrees, distance in km
+            function moon(ms) {
+                const t = cent(ms);
+                const Lp = 218.3164477 + 481267.88123421 * t;
+                const D = RAD * (297.8501921 + 445267.1114034 * t);
+                const M = RAD * (357.5291092 + 35999.0502909 * t);
+                const Mp = RAD * (134.9633964 + 477198.8675055 * t);
+                const F = RAD * (93.2720950 + 483202.0175233 * t);
+                const lon = Lp + 6.288774 * sin(Mp) + 1.274027 * sin(2 * D - Mp) + 0.658314 * sin(2 * D) + 0.213618 * sin(2 * Mp)
+                    - 0.185116 * sin(M) - 0.114332 * sin(2 * F) + 0.058793 * sin(2 * D - 2 * Mp) + 0.057066 * sin(2 * D - M - Mp)
+                    + 0.053322 * sin(2 * D + Mp) + 0.045758 * sin(2 * D - M) - 0.040923 * sin(M - Mp) - 0.034720 * sin(D)
+                    - 0.030383 * sin(M + Mp);
+                const lat = 5.128122 * sin(F) + 0.280602 * sin(Mp + F) + 0.277693 * sin(Mp - F) + 0.173237 * sin(2 * D - F)
+                    + 0.055413 * sin(2 * D - Mp + F) + 0.046271 * sin(2 * D - Mp - F) + 0.032573 * sin(2 * D + F);
+                const dist = 385000.56 - 20905.355 * cos(Mp) - 3699.111 * cos(2 * D - Mp) - 2955.968 * cos(2 * D) - 569.925 * cos(2 * Mp);
+                return { lon: lon, lat: lat, dist: dist };
+            }
+
+            function sunLon(ms) {
+                const t = cent(ms);
+                const M = RAD * (357.52911 + 35999.05029 * t);
+                return 280.46646 + 36000.76983 * t + 1.914602 * sin(M) + 0.019993 * sin(2 * M) + 0.000289 * sin(3 * M);
+            }
+
+            // Angle Moon - Sun along the ecliptic: 0 = new, 90 = first quarter, 180 = full, 270 = last quarter
+            function elong(ms) { return norm(moon(ms).lon - sunLon(ms)); }
+
+            const NAMES = ["New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous", "Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent"];
+            const ICONS_N = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
+            const ICONS_S = ["🌑", "🌘", "🌗", "🌖", "🌕", "🌔", "🌓", "🌒"];
+
+            function phase(ms, south) {
+                const e = elong(ms), p = e / 360;
+                let i;
+                if (p < 0.03 || p >= 0.97) i = 0;
+                else if (p < 0.22) i = 1;
+                else if (p < 0.28) i = 2;
+                else if (p < 0.47) i = 3;
+                else if (p < 0.53) i = 4;
+                else if (p < 0.72) i = 5;
+                else if (p < 0.78) i = 6;
+                else i = 7;
+                return { name: NAMES[i], icon: (south ? ICONS_S : ICONS_N)[i], illum: Math.round(100 * (1 - cos(e * RAD)) / 2), p: p };
+            }
+
+            // Moon altitude (degrees) above the rise/set threshold; the threshold includes parallax, refraction and the Moon's radius
+            function alt(ms, lat, lon) {
+                const m = moon(ms), t = cent(ms);
+                const eps = RAD * (23.4393 - 0.013 * t);
+                const l = RAD * m.lon, b = RAD * m.lat;
+                const ra = Math.atan2(sin(l) * cos(eps) - Math.tan(b) * sin(eps), cos(l));
+                const dec = Math.asin(sin(b) * cos(eps) + cos(b) * sin(eps) * sin(l));
+                const theta = RAD * norm(280.46061837 + 360.98564736629 * (ms / DAY - 10957.5));
+                const H = theta + RAD * lon - ra;
+                const phi = RAD * lat;
+                const h = Math.asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H));
+                const h0 = 0.7275 * Math.asin(6378.14 / m.dist) - RAD * 34 / 60;
+                return (h - h0) / RAD;
+            }
+
+            // First moonrise and moonset within the 24 hours after startMs (null when the Moon does not rise or set)
+            function events(startMs, lat, lon) {
+                const step = 600000;
+                let prev = null, rise = null, set = null;
+                for (let k = 0; k <= 144; k++) {
+                    const v = alt(startMs + k * step, lat, lon);
+                    if (prev !== null && (prev < 0) !== (v < 0)) {
+                        const x = startMs + (k - 1) * step + step * (prev / (prev - v));
+                        if (v >= 0) { if (rise === null) rise = x; }
+                        else if (set === null) set = x;
+                    }
+                    prev = v;
+                }
+                return { rise: rise, set: set };
+            }
+
+            // Next new moon / first quarter / full moon / last quarter after ms
+            function next(ms, south) {
+                const e0 = elong(ms), idx = Math.floor(e0 / 90) + 1, need = idx * 90 - e0;
+                const q = idx % 4;
+                const nm = ["New Moon", "First Quarter", "Full Moon", "Last Quarter"];
+                const ic = south ? ["🌑", "🌗", "🌕", "🌓"] : ["🌑", "🌓", "🌕", "🌗"];
+                let prev = 0, prevT = ms;
+                for (let h = 1; h <= 24 * 10; h++) {
+                    const t = ms + h * 3600000;
+                    const d = norm(elong(t) - e0);
+                    if (d >= need && d < 180) {
+                        return { ms: prevT + (t - prevT) * (need - prev) / (d - prev), name: nm[q], icon: ic[q] };
+                    }
+                    prev = d; prevT = t;
+                }
+                return null;
+            }
+
+            return { phase: phase, events: events, next: next, elong: elong };
+        })();
+
+        function smOffset(ms) {
+            const parts = new Intl.DateTimeFormat("en-CA", {
+                timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            }).formatToParts(new Date(ms));
+            const g = t => parseInt(parts.find(x => x.type === t).value, 10);
+            return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - Math.floor(ms / 1000) * 1000;
+        }
+
+        function smMidnight(dateStr) {
+            const q = dateStr.split("-").map(Number);
+            const guess = Date.UTC(q[0], q[1] - 1, q[2]);
+            return guess - smOffset(guess - smOffset(guess));
+        }
+
+        function renderSunMoon(d) {
+            const box = document.getElementById("sunmoon");
+            if (!box) return;
+            try {
+                const lat = (typeof LOC !== "undefined") ? LOC.lat : 6.95;
+                const lon = (typeof LOC !== "undefined") ? LOC.lon : 100.45;
+                const loc = (typeof LOCALE !== "undefined") ? LOCALE : "en-US";
+                const south = lat < 0;
+                const labels = ["Today", "Tomorrow", "Following Day"];
+                const fmt = ms => ms == null ? "—" : new Date(ms).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+                const hhmm = v => (v && v.length >= 16) ? v.slice(11, 16) : "—";
+                const row = (a, b) => '<div class="detail-row"><span>' + a + "</span><strong>" + b + "</strong></div>";
+                let html = "";
+                for (let n = 0; n < 3 && n < d.time.length; n++) {
+                    const start = smMidnight(d.time[n]);
+                    const ph = SM.phase(start + 12 * 3600000, south);
+                    const ev = SM.events(start, lat, lon);
+                    const dateStr = new Date(d.time[n] + "T00:00:00").toLocaleDateString(loc, { month: "short", day: "numeric" });
+                    html += '<div class="sm-day"><div class="sm-title">' + labels[n] + '</div><div class="sm-date">' + dateStr + "</div>"
+                        + '<div class="sm-moon">' + ph.icon + '</div><div class="sm-name">' + ph.name + "</div>"
+                        + row("Illumination", ph.illum + "%")
+                        + row("🌅 Sunrise", d.sunrise ? hhmm(d.sunrise[n]) : "—")
+                        + row("🌇 Sunset", d.sunset ? hhmm(d.sunset[n]) : "—")
+                        + row("🌙 Moonrise", fmt(ev.rise))
+                        + row("🌙 Moonset", fmt(ev.set))
+                        + "</div>";
+                }
+                box.innerHTML = '<div class="sm-grid">' + html + "</div>";
+                const nx = SM.next(Date.now(), south);
+                document.getElementById("sm-next").textContent = nx
+                    ? "Next: " + nx.icon + " " + nx.name + " · " + new Date(nx.ms).toLocaleDateString(loc, { month: "short", day: "numeric", timeZone: TZ })
+                    : "";
+            } catch (e) {
+                console.error(e);
+                box.textContent = "Sun & Moon unavailable (" + e.message + ").";
+            }
+        }
     </script>
 </body>
 </html>
