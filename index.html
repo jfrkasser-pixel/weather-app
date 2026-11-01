@@ -132,7 +132,7 @@
     <div class="container">
         <div class="header-card">
             <h1 id="greeting">Hello!</h1>
-            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option><option value="zh">中文</option><option value="ru">Русский</option></select></div>
+            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option><option value="zh">中文</option><option value="ru">Русский</option><option value="sv">Svenska</option></select></div>
             <div class="time" id="clock">--:--:--</div>
             <div class="date" id="date"></div>
         </div>
@@ -227,11 +227,11 @@
         // ---------- Language ----------
         let LANG = "en";
         try { LANG = localStorage.getItem("wx_lang") || ""; } catch (e) {}
-        if (["en", "fr", "de", "th", "zh", "ru"].indexOf(LANG) < 0) {
+        if (["en", "fr", "de", "th", "zh", "ru", "sv"].indexOf(LANG) < 0) {
             const nl = (navigator.language || "en").slice(0, 2).toLowerCase();
-            LANG = ["fr", "de", "th", "zh", "ru"].indexOf(nl) >= 0 ? nl : "en";
+            LANG = ["fr", "de", "th", "zh", "ru", "sv"].indexOf(nl) >= 0 ? nl : "en";
         }
-        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH", zh: "zh-CN", ru: "ru-RU" })[LANG];
+        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH", zh: "zh-CN", ru: "ru-RU", sv: "sv-SE" })[LANG];
         document.documentElement.lang = LANG;
 
         const API_URL = "https://api.open-meteo.com/v1/forecast"
@@ -1090,7 +1090,7 @@
             [/^(?:Weather app|Debian 13 Automation Worker) • Forecast updated (.+)$/, "Application météo • Prévisions mises à jour à {1}", "Wetter-App • Vorhersage aktualisiert um {1}", "แอปสภาพอากาศ • อัปเดตพยากรณ์เมื่อ {1}"]
         ];
 
-        const TR_IDX = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5 })[LANG];
+        const TR_IDX = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6 })[LANG];
         const TR_DICT = {};
         const TR_RULES = [];
         if (TR_IDX) {
@@ -1301,6 +1301,193 @@
             TR_RULES_SRC.forEach((r, i) => { if (byIdx[i] !== undefined) TR_RULES.push({ rx: r[0], tpl: byIdx[i] }); });
         }
 
+        // ---------- Swedish (sv) ----------
+        const TR_SV_ROWS = {
+            "Good Morning!": "God morgon!",
+            "Good Afternoon!": "God eftermiddag!",
+            "Good Evening!": "God kväll!",
+            "Hello!": "Hej!",
+            "change": "ändra",
+            "Loading forecast...": "Laddar prognos...",
+            "Loading...": "Laddar...",
+            "Next 24 hours": "Nästa 24 timmar",
+            "Now": "Nu",
+            "Now:": "Nu:",
+            "Next change:": "Nästa ändring:",
+            "from": "från",
+            "No change expected in the forecast window.": "Ingen ändring väntas under prognosperioden.",
+            "Clear Sky": "Klart väder",
+            "Mainly Clear": "Mestadels klart",
+            "Partly Cloudy": "Delvis molnigt",
+            "Overcast": "Mulet",
+            "Foggy": "Dimma",
+            "Rime Fog": "Rimfrostdimma",
+            "Light Drizzle": "Lätt duggregn",
+            "Drizzle": "Duggregn",
+            "Heavy Drizzle": "Kraftigt duggregn",
+            "Slight Rain": "Lätt regn",
+            "Moderate Rain": "Måttligt regn",
+            "Heavy Rain": "Kraftigt regn",
+            "Light Showers": "Lätta skurar",
+            "Rain Showers": "Regnskurar",
+            "Violent Showers": "Kraftiga skurar",
+            "Thunderstorm": "Åska",
+            "Thunderstorm + Hail": "Åska med hagel",
+            "Severe Thunderstorm": "Kraftig åska",
+            "Today": "Idag",
+            "Tomorrow": "Imorgon",
+            "Following Day": "Övermorgon",
+            "Low Temp": "Lägsta temp.",
+            "Wet periods": "Regnperioder",
+            "Dry": "Torrt",
+            "Rain Chance": "Regnrisk",
+            "Rainfall": "Nederbörd",
+            "Max Wind": "Max vind",
+            "Rain radar": "Regnradar",
+            "Windy map": "Windy-karta",
+            "Radar": "Radar",
+            "Rain forecast": "Regnprognos",
+            "Satellite": "Satellit",
+            "Wind": "Vind",
+            "Weather data by": "Väderdata från",
+            "· Radar by": "· Radar från",
+            "· Maps ©": "· Kartor ©",
+            "Weather app": "Väderapp",
+            "Debian 13 Automation Worker": "Väderapp",
+            "Forecast accuracy - last 7 days": "Prognosträffsäkerhet – senaste 7 dagarna",
+            "1 day ahead": "1 dag i förväg",
+            "2 days ahead": "2 dagar i förväg",
+            "3 days ahead": "3 dagar i förväg",
+            "Day": "Dag",
+            "Forecast": "Prognos",
+            "Actual": "Utfall",
+            "Very high": "Mycket hög",
+            "High": "Hög",
+            "Moderate": "Måttlig",
+            "Low": "Låg",
+            "Ultra low": "Extremt låg",
+            "Rain called right:": "Regn rätt förutsagt:",
+            "Max temp error:": "Fel i maxtemperatur:",
+            "on average": "i genomsnitt",
+            "Rain per day: forecast": "Regn per dag: prognos",
+            "vs actual": "mot utfall",
+            "Main cause of differences:": "Huvudorsak till avvikelserna:",
+            "No large differences: everything within model resolution": "Inga stora avvikelser: allt inom modellens upplösning",
+            "Low-pressure system": "Lågtryckssystem",
+            "Storm cells": "Stormceller",
+            "Persistent rain band": "Ihållande regnband",
+            "Heavier showers": "Kraftigare skurar",
+            "Rain band shifted": "Regnbandet förflyttades",
+            "System weaker than forecast": "Systemet svagare än prognosen",
+            "Within model resolution": "Inom modellens upplösning",
+            "mostly missed rain (forecast dry or light, but rain fell)": "mest missat regn (prognos torrt eller lätt, men regn föll)",
+            "mostly false alarms (rain forecast, little or none fell)": "mest falsklarm (regn väntades, lite eller inget föll)",
+            "rain amounts far from what fell": "regnmängder långt från det som föll",
+            "rain arriving at different times than forecast": "regn som kom vid andra tider än i prognosen",
+            "daytime temperatures off": "dagstemperaturer som avvek",
+            "N": "N", "NE": "NO", "E": "O", "SE": "SO", "S": "S", "SW": "SV", "W": "V", "NW": "NV",
+            "cooler": "svalare",
+            "warmer": "varmare",
+            "heavier": "kraftigare",
+            "lighter": "svagare",
+            "A short, intense downpour like this is hard for a model to place": "En kort, intensiv skur som denna är svår för en modell att placera",
+            "The showers most likely formed nearby rather than at this spot": "Skurarna bildades troligen i närheten snarare än på just den här platsen",
+            "No strong pressure or storm signal in the data": "Ingen tydlig tryck- eller stormsignal i data",
+            "Showers in the tropics are small and short-lived, so a model can get the weather pattern right but miss the exact place and hour": "Skurar i tropikerna är små och kortlivade, så en modell kan ha rätt om vädermönstret men missa exakt plats och timme",
+            "While confidence is this low, trust the rain chance % more than a yes/no call, and check the shorter lead-time tabs": "Så länge tilliten är så låg bör du lita mer på regnrisken i procent än på ett ja/nej-besked, och titta på flikarna med kortare förvarning",
+            "Wet day = 1 mm or more": "Regnig dag = 1 mm eller mer",
+            "Actual = Open-Meteo's latest model values, not a rain gauge or radar": "Utfall = Open-Meteos senaste modellvärden, inte en regnmätare eller radar",
+            "Event labels are inferred from pressure, wind, CAPE and rain-intensity data, not confirmed by a weather agency": "Händelsetyperna härleds från tryck-, vind-, CAPE- och regnintensitetsdata och är inte bekräftade av någon vädertjänst",
+            "Model: ECMWF IFS": "Modell: ECMWF IFS",
+            "\"Actual\" = Open-Meteo's latest model values, not a rain gauge": "”Utfall” = Open-Meteos senaste modellvärden, inte en regnmätare",
+            "No past-forecast data for this lead time.": "Inga tidigare prognoser för den här förvarningstiden.",
+            "Change location": "Byt plats",
+            "Search a place, e.g. Hat Yai": "Sök en plats, t.ex. Hat Yai",
+            "Search": "Sök",
+            "Use GPS": "Använd GPS",
+            "Station default": "Stationens standard",
+            "Close": "Stäng",
+            "Searching...": "Söker...",
+            "Your choice is saved on this device only. \"Station default\" returns to the location set on the server.": "Ditt val sparas bara på den här enheten. ”Stationens standard” återgår till platsen som är inställd på servern.",
+            "No match. Try a nearby town or add the country.": "Ingen träff. Prova en närliggande ort eller lägg till landet.",
+            "GPS needs HTTPS, and this page is on plain http, so the browser blocks it. Use search or the station default instead.": "GPS kräver HTTPS, och den här sidan använder vanlig http, så webbläsaren blockerar det. Använd sökningen eller stationens standard i stället.",
+            "Sun & Moon": "Sol och måne",
+            "Illumination": "Belyst andel",
+            "Sunrise": "Soluppgång",
+            "Sunset": "Solnedgång",
+            "Moonrise": "Månuppgång",
+            "Moonset": "Månnedgång",
+            "New Moon": "Nymåne",
+            "Waxing Crescent": "Tilltagande månskära",
+            "First Quarter": "Första kvarteret",
+            "Waxing Gibbous": "Tilltagande måne",
+            "Full Moon": "Fullmåne",
+            "Waning Gibbous": "Avtagande måne",
+            "Last Quarter": "Sista kvarteret",
+            "Waning Crescent": "Avtagande månskära",
+            "Sunrise and sunset from Open-Meteo. Moon phase, moonrise and moonset are calculated on this page (about ±10 minutes). A dash means no moonrise or moonset on that calendar day.": "Soluppgång och solnedgång kommer från Open-Meteo. Månfas, månuppgång och månnedgång beräknas på den här sidan (cirka ±10 minuter). Ett streck betyder ingen månuppgång eller månnedgång den kalenderdagen."
+        };
+
+        // [sample sentence that the rule matches, Swedish template]
+        const TR_SV_RULES = [
+            ["(in 3h)", "(om {1} tim⟦ (imorgon eller senare){?2}⟧)"],
+            ["Weather sync failed (HTTP 429). Retrying in 1 minute...", "Väderuppdateringen misslyckades ({1}). Försöker igen om 1 minut..."],
+            ["Radar unavailable (x)", "Radar ej tillgänglig ({1})"],
+            ["15:00 (forecast)", "{1} (prognos)"],
+            ["2 days ahead · 83", "{@1} · {2}"],
+            ["Confidence 84/100", "Tillit {1}/100"],
+            ["How much to trust the forecast at this lead time, judged by the last 7 days (rain call 50%, temperature 25%, rain amount 25%)",
+                "Hur mycket du kan lita på prognosen med denna förvarningstid, bedömt utifrån de senaste {1} dagarna (regnbesked 50 %, temperatur 25 %, regnmängd 25 %)"],
+            ["7/7 days", "{1}/{2} dagar"],
+            ["Main cause: Storm cells (3 of 7 days)", "Huvudorsak: {@1} ({2} av {3} dagar)"],
+            ["Storm cells (3 of 7 days)", "{@1} ({2} av {3} dagar)"],
+            ["Low-confidence event: 1 day ahead forecasts, Oct 24 – Oct 30", "Händelse med låg tillit: prognoser {@1}, {2}"],
+            ["Rain was called correctly on only 3 of 7 days, and the max temperature was off by ±1.2°C on average",
+                "Regn förutsades rätt endast {1} av {2} dagar, och maxtemperaturen avvek i genomsnitt med ±{3} °C"],
+            ["Pressure fell 4.6 hPa below the week's average, with gusts up to 48 km/h from the NE",
+                "Trycket var {1} hPa under veckans medelvärde⟦, med vindbyar upp till {2} km/h från {@3}⟧"],
+            ["This points to a low-pressure system (possibly a depression) stronger or closer than forecast: 10.5 mm more rain fell",
+                "Detta tyder på ett lågtryckssystem (möjligen en depression) som var starkare eller närmare än väntat: {1} mm mer regn föll"],
+            ["Intense downpours: up to 12.0 mm/h near 15:00, very unstable air (CAPE 1500 J/kg), thunderstorm conditions for 2 h",
+                "Intensiva skyfall: upp till {1} mm/h⟦ omkring {2}⟧⟦, mycket instabil luft (CAPE {3} J/kg)⟧⟦, åskförhållanden i {4} tim⟧"],
+            ["Storm cells are smaller than a model grid cell, so their place and strength are hard to forecast (10.5 mm more than expected)",
+                "Stormceller är mindre än en cell i modellens rutnät, så deras plats och styrka är svåra att förutsäga ({1} mm mer än väntat)"],
+            ["Rain fell in 14 of 24 hours: a slow-moving rain band or trough stayed longer than forecast (+8.0 mm)",
+                "Regn föll under {1} av 24 timmar: ett trögt regnband eller tråg stannade längre än väntat (+{2} mm)"],
+            ["Showers were heavier than the model expected (+6.0 mm)", "Skurarna var kraftigare än modellen väntat (+{1} mm)"],
+            ["Forecast 12.0 mm did not reach this spot; the rain band most likely passed or formed nearby",
+                "Prognosens {1} mm nådde aldrig hit; regnbandet passerade eller bildades troligen i närheten"],
+            ["Less rain than forecast (−5.0 mm); no pressure drop was seen, so the expected system stayed weak or tracked away",
+                "Mindre regn än prognosen (−{1} mm)⟦; inget tryckfall syntes, så det väntade systemet förblev svagt eller drog bort{?2}⟧"],
+            ["Max temperature was 2.5°C cooler than forecast (cloud and rain cooling)",
+                "Maxtemperaturen var {1} °C {@2} än prognosen⟦ (avkylning av moln och regn){?3}⟧"],
+            ["Missed rain: 0.4 mm forecast but 22.0 mm fell, peaking near 15:00 (14.0 mm/h)",
+                "Missat regn: {1} mm prognos men {2} mm föll⟦, högst omkring {3} ({4} mm/h)⟧"],
+            ["False alarm: 9.3 mm forecast but only 1.8 mm fell", "Falsklarm: {1} mm prognos men bara {2} mm föll"],
+            ["Rain amount off: 20.0 mm forecast, 40.0 mm fell (heavier than expected)",
+                "Regnmängd fel: {1} mm prognos, {2} mm föll ({@3} än väntat)"],
+            ["Timing off: rain expected to peak near 09:00 but peaked near 17:00",
+                "Tidpunkt fel: regnet väntades toppa omkring {1} men toppade omkring {2}"],
+            ["Max temperature off by 3.5°C (30° forecast, 27° actual, cooler than expected)",
+                "Maxtemperaturen avvek med {1} °C ({2}° prognos, {3}° utfall, {@4} än väntat)"],
+            ["Search failed (x)", "Sökningen misslyckades ({1})"],
+            ["Location unavailable (x)", "Plats ej tillgänglig ({1})"],
+            ["No data for this lead time (x)", "Inga data för den här förvarningstiden ({1})"],
+            ["Accuracy data unavailable (x)", "Träffsäkerhetsdata ej tillgängliga ({1})"],
+            ["Weather app • Forecast updated 14:00:00", "Väderapp • Prognos uppdaterad {1}"],
+            ["Next: 🌑 New Moon · Nov 9", "Nästa: {1} {@2} · {3}"]
+        ];
+        if (LANG === "sv") {
+            Object.keys(TR_SV_ROWS).forEach(k => { TR_DICT[k] = TR_SV_ROWS[k]; });
+            const svIdx = {};
+            TR_SV_RULES.forEach(x => {
+                for (let i = 0; i < TR_RULES_SRC.length; i++) {
+                    if (TR_RULES_SRC[i][0].test(x[0])) { svIdx[i] = x[1]; break; }
+                }
+            });
+            TR_RULES_SRC.forEach((r, i) => { if (svIdx[i] !== undefined) TR_RULES.push({ rx: r[0], tpl: svIdx[i] }); });
+        }
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -1387,7 +1574,7 @@
             if (q) q.placeholder = trAny(q.placeholder);
             trWalk(document.body);
             trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
-            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ", zh: "气象站", ru: "Метеостанция" };
+            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ", zh: "气象站", ru: "Метеостанция", sv: "Väderstation" };
             document.title = LOC.name.split(",")[0] + " · " + names[LANG];
         })();
     
