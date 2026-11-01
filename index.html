@@ -121,6 +121,9 @@
         .sm-note { margin-top: 0.5rem; font-size: 0.7rem; color: #64748b; text-align: center; line-height: 1.4; }
         button, select, input { font-family: inherit; }
         html[lang="zh"] body, html[lang="zh"] button, html[lang="zh"] select, html[lang="zh"] input { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif; }
+        .mc { position: relative; display: inline-block; }
+        .mc-cloud { position: absolute; right: -0.4em; bottom: -0.1em; font-size: 0.7em; }
+        .mc-cloud.sm { font-size: 0.5em; opacity: 0.85; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -234,7 +237,7 @@
         const API_URL = "https://api.open-meteo.com/v1/forecast"
             + "?latitude=" + LOC.lat + "&longitude=" + LOC.lon + ""
             + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunrise,sunset"
-            + "&hourly=weather_code,temperature_2m,precipitation_probability,precipitation"
+            + "&hourly=weather_code,temperature_2m,precipitation_probability,precipitation,is_day"
             + "&timezone=" + encodeURIComponent(LOC.tz) + "&forecast_days=3";
 
         const WMO = {
@@ -257,16 +260,38 @@
             return "dry";
         }
 
-        function icon(code) {
-            if (code === 0 || code === 1) return "☀️";
-            if (code === 2) return "⛅";
-            if (code === 3) return "☁️";
+        function icon(code, ctx) {
+            const night = !!(ctx && ctx.night);
+            if (code <= 3) {
+                if (!night) return code === 0 ? "☀️" : code === 1 ? "🌤️" : code === 2 ? "⛅" : "☁️";
+                if (code === 3) return "☁️";
+                const m = nightMoon(ctx.ms);
+                if (code === 0) return m;
+                return '<span class="mc">' + m + '<span class="mc-cloud' + (code === 1 ? " sm" : "") + '">☁️</span></span>';
+            }
             if (code >= 45 && code < 51) return "🌫️";
             if (code >= 95) return "⛈️";
             if (code >= 51 && code < 61) return "🌦️";
             if (code >= 80) return "🌦️";
             if (code >= 61) return "🌧️";
             return "☁️";
+        }
+
+        // Night hours (Open-Meteo is_day = 0) show the Moon in its current phase
+        function nightMoon(ms) {
+            try {
+                const south = (typeof LOC !== "undefined") && LOC.lat < 0;
+                return SM.phase(ms, south).icon;
+            } catch (e) { return "🌙"; }
+        }
+
+        function hourMs(t) {
+            return smMidnight(t.slice(0, 10)) + parseInt(t.slice(11, 13), 10) * 3600000 + parseInt(t.slice(14, 16) || "0", 10) * 60000;
+        }
+
+        function nightCtx(h, k) {
+            if (!h.is_day || h.is_day[k] == null || h.is_day[k] !== 0) return null;
+            try { return { night: true, ms: hourMs(h.time[k]) }; } catch (e) { return { night: true, ms: Date.now() }; }
         }
 
         function pad(n) { return String(n).padStart(2, "0"); }
@@ -299,13 +324,13 @@
             for (let k = i + 1; k < h.time.length; k++) {
                 if (kind(h.weather_code[k]) !== kind(cur)) { j = k; break; }
             }
-            let html = "Now: <strong>" + icon(cur) + " " + label(cur) + "</strong>";
+            let html = "Now: <strong>" + icon(cur, nightCtx(h, i)) + " " + label(cur) + "</strong>";
             if (j >= 0) {
                 const next = h.weather_code[j];
                 const inH = j - i;
                 const when = h.time[j].slice(11, 16);
                 const dayTag = h.time[j].slice(0, 10) !== h.time[i].slice(0, 10) ? " (tomorrow or later)" : "";
-                html += "<br>Next change: <strong>" + icon(next) + " " + label(next) + "</strong> from <strong>" + when + "</strong>"
+                html += "<br>Next change: <strong>" + icon(next, nightCtx(h, j)) + " " + label(next) + "</strong> from <strong>" + when + "</strong>"
                       + " <span class='sub'>(in " + inH + "h" + dayTag + ")</span>";
             } else {
                 html += "<br><span class='sub'>No change expected in the forecast window.</span>";
@@ -320,7 +345,7 @@
                 const t = k === i ? "Now" : h.time[k].slice(11, 16);
                 html += '<div class="hour' + (k === i ? " now" : "") + '">'
                       + '<div class="h-time">' + t + '</div>'
-                      + '<div class="h-icon">' + icon(h.weather_code[k]) + '</div>'
+                      + '<div class="h-icon">' + icon(h.weather_code[k], nightCtx(h, k)) + '</div>'
                       + '<div class="h-temp">' + Math.round(h.temperature_2m[k]) + '°</div>'
                       + '<div class="h-rain">💧' + h.precipitation_probability[k] + '%</div>'
                       + '</div>';
