@@ -141,7 +141,7 @@
     <div class="container">
         <div class="header-card">
             <h1 id="greeting">Hello!</h1>
-            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option><option value="zh">中文</option><option value="ru">Русский</option><option value="sv">Svenska</option></select></div>
+            <div class="location">📍 <span id="loc-name">Khlong Hoi Khong, Songkhla, Thailand</span> <button type="button" class="loc-link" id="loc-btn">change</button> <select id="lang-sel" class="lang-sel" aria-label="Language"><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="th">ไทย</option><option value="zh">中文</option><option value="ru">Русский</option><option value="sv">Svenska</option><option value="ar">العربية</option></select></div>
             <div class="time" id="clock">--:--:--</div>
             <div class="date" id="date"></div>
         </div>
@@ -250,11 +250,11 @@
         // ---------- Language ----------
         let LANG = "en";
         try { LANG = localStorage.getItem("wx_lang") || ""; } catch (e) {}
-        if (["en", "fr", "de", "th", "zh", "ru", "sv"].indexOf(LANG) < 0) {
+        if (["en", "fr", "de", "th", "zh", "ru", "sv", "ar"].indexOf(LANG) < 0) {
             const nl = (navigator.language || "en").slice(0, 2).toLowerCase();
-            LANG = ["fr", "de", "th", "zh", "ru", "sv"].indexOf(nl) >= 0 ? nl : "en";
+            LANG = ["fr", "de", "th", "zh", "ru", "sv", "ar"].indexOf(nl) >= 0 ? nl : "en";
         }
-        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH", zh: "zh-CN", ru: "ru-RU", sv: "sv-SE" })[LANG];
+        const LOCALE = ({ en: "en-US", fr: "fr-FR", de: "de-DE", th: "th-TH", zh: "zh-CN", ru: "ru-RU", sv: "sv-SE", ar: "ar-u-nu-latn-ca-gregory" })[LANG];
         document.documentElement.lang = LANG;
 
         const API_URL = "https://api.open-meteo.com/v1/forecast"
@@ -1114,7 +1114,7 @@
             [/^(?:Weather app|Debian 13 Automation Worker) • Forecast updated (.+)$/, "Application météo • Prévisions mises à jour à {1}", "Wetter-App • Vorhersage aktualisiert um {1}", "แอปสภาพอากาศ • อัปเดตพยากรณ์เมื่อ {1}"]
         ];
 
-        const TR_IDX = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6 })[LANG];
+        const TR_IDX = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
         const TR_DICT = {};
         const TR_RULES = [];
         if (TR_IDX) {
@@ -1542,6 +1542,205 @@
             TR_OBS_RULES.forEach(r => { if (r[k]) TR_RULES.push({ rx: r[0], tpl: r[k] }); });
         })();
 
+        // ---------- Arabic (ar) ----------
+        const TR_AR_ROWS = {
+            "Good Morning!": "صباح الخير!",
+            "Good Afternoon!": "مساء الخير!",
+            "Good Evening!": "مساء الخير!",
+            "Hello!": "مرحبًا!",
+            "change": "تغيير",
+            "Loading forecast...": "جارٍ تحميل التوقعات...",
+            "Loading...": "جارٍ التحميل...",
+            "Next 24 hours": "الـ 24 ساعة القادمة",
+            "Now": "الآن",
+            "Now:": "الآن:",
+            "Next change:": "التغيّر القادم:",
+            "from": "من",
+            "No change expected in the forecast window.": "لا يُتوقع أي تغيّر خلال فترة التوقعات.",
+            "Clear Sky": "سماء صافية",
+            "Mainly Clear": "صافية غالبًا",
+            "Partly Cloudy": "غائم جزئيًا",
+            "Overcast": "غائم كليًا",
+            "Foggy": "ضباب",
+            "Rime Fog": "ضباب جليدي",
+            "Light Drizzle": "رذاذ خفيف",
+            "Drizzle": "رذاذ",
+            "Heavy Drizzle": "رذاذ كثيف",
+            "Slight Rain": "مطر خفيف",
+            "Moderate Rain": "مطر متوسط",
+            "Heavy Rain": "مطر غزير",
+            "Light Showers": "زخات خفيفة",
+            "Rain Showers": "زخات مطر",
+            "Violent Showers": "زخات عنيفة",
+            "Thunderstorm": "عاصفة رعدية",
+            "Thunderstorm + Hail": "عاصفة رعدية مع برَد",
+            "Severe Thunderstorm": "عاصفة رعدية شديدة",
+            "Today": "اليوم",
+            "Tomorrow": "غدًا",
+            "Following Day": "بعد غد",
+            "Low Temp": "الصغرى",
+            "Wet periods": "فترات ممطرة",
+            "Dry": "جاف",
+            "Rain Chance": "احتمال المطر",
+            "Rainfall": "كمية المطر",
+            "Max Wind": "أقصى رياح",
+            "Rain radar": "رادار المطر",
+            "Windy map": "خريطة Windy",
+            "Radar": "رادار",
+            "Rain forecast": "توقعات المطر",
+            "Satellite": "قمر صناعي",
+            "Wind": "الرياح",
+            "Weather data by": "بيانات الطقس من",
+            "· Radar by": "· الرادار من",
+            "· Maps ©": "· الخرائط ©",
+            "Weather app": "تطبيق الطقس",
+            "Debian 13 Automation Worker": "تطبيق الطقس",
+            "Forecast accuracy - last 7 days": "دقة التوقعات – آخر 7 أيام",
+            "1 day ahead": "قبل يوم واحد",
+            "2 days ahead": "قبل يومين",
+            "3 days ahead": "قبل 3 أيام",
+            "Day": "اليوم",
+            "Forecast": "التوقع",
+            "Actual": "الفعلي",
+            "Very high": "عالية جدًا",
+            "High": "عالية",
+            "Moderate": "متوسطة",
+            "Low": "منخفضة",
+            "Ultra low": "منخفضة جدًا",
+            "Rain called right:": "توقع المطر الصحيح:",
+            "Max temp error:": "خطأ الحرارة العظمى:",
+            "on average": "في المتوسط",
+            "Rain per day: forecast": "المطر يوميًا: التوقع",
+            "vs actual": "مقابل الفعلي",
+            "Main cause of differences:": "السبب الرئيسي للفروقات:",
+            "No large differences: everything within model resolution": "لا فروقات كبيرة: كل شيء ضمن دقة النموذج",
+            "Low-pressure system": "منخفض جوي",
+            "Storm cells": "خلايا رعدية",
+            "Persistent rain band": "حزام مطر مستمر",
+            "Heavier showers": "زخات أقوى",
+            "Rain band shifted": "انحراف حزام المطر",
+            "System weaker than forecast": "نظام أضعف من المتوقع",
+            "Within model resolution": "ضمن دقة النموذج",
+            "mostly missed rain (forecast dry or light, but rain fell)": "غالبًا مطر لم يُتوقع (توقع جاف أو خفيف لكن هطل المطر)",
+            "mostly false alarms (rain forecast, little or none fell)": "غالبًا إنذارات كاذبة (توقع مطر لكن هطل القليل أو لم يهطل)",
+            "rain amounts far from what fell": "كميات مطر بعيدة عمّا هطل",
+            "rain arriving at different times than forecast": "مطر في أوقات غير التي توقعها النموذج",
+            "daytime temperatures off": "حرارة النهار غير دقيقة",
+            "N": "شمال", "NE": "شمال شرق", "E": "شرق", "SE": "جنوب شرق", "S": "جنوب", "SW": "جنوب غرب", "W": "غرب", "NW": "شمال غرب",
+            "cooler": "أبرد",
+            "warmer": "أدفأ",
+            "heavier": "أغزر",
+            "lighter": "أخف",
+            "A short, intense downpour like this is hard for a model to place": "من الصعب على النموذج تحديد موقع زخة قصيرة وشديدة كهذه",
+            "The showers most likely formed nearby rather than at this spot": "الأرجح أن الزخات تشكلت بالقرب من هنا وليس في هذا الموقع",
+            "No strong pressure or storm signal in the data": "لا توجد إشارة واضحة لضغط أو عاصفة في البيانات",
+            "Showers in the tropics are small and short-lived, so a model can get the weather pattern right but miss the exact place and hour": "الزخات في المناطق الاستوائية صغيرة وقصيرة العمر، لذا قد يصيب النموذج نمط الطقس لكنه يخطئ المكان والساعة بدقة",
+            "While confidence is this low, trust the rain chance % more than a yes/no call, and check the shorter lead-time tabs": "ما دامت الثقة بهذا الانخفاض، ثق بنسبة احتمال المطر أكثر من الإجابة بنعم/لا، وراجع تبويبات المدد الأقصر",
+            "Wet day = 1 mm or more": "اليوم الماطر = 1 ملم أو أكثر",
+            "Actual = Open-Meteo's latest model values, not a rain gauge or radar": "الفعلي = أحدث قيم نموذج Open-Meteo، وليس مقياس مطر أو رادارًا",
+            "Event labels are inferred from pressure, wind, CAPE and rain-intensity data, not confirmed by a weather agency": "تُستنتج تسميات الأحداث من بيانات الضغط والرياح وCAPE وشدة المطر، ولم تؤكدها أي جهة أرصاد",
+            "Model: ECMWF IFS": "النموذج: ECMWF IFS",
+            "\"Actual\" = Open-Meteo's latest model values, not a rain gauge": "«الفعلي» = أحدث قيم نموذج Open-Meteo، وليس مقياس مطر",
+            "No past-forecast data for this lead time.": "لا توجد توقعات سابقة لهذه المدة.",
+            "Change location": "تغيير الموقع",
+            "Search a place, e.g. Hat Yai": "ابحث عن مكان، مثل هات ياي",
+            "Search": "بحث",
+            "Use GPS": "استخدم GPS",
+            "Station default": "افتراضي المحطة",
+            "Close": "إغلاق",
+            "Searching...": "جارٍ البحث...",
+            "Your choice is saved on this device only. \"Station default\" returns to the location set on the server.": "يُحفظ اختيارك على هذا الجهاز فقط. «افتراضي المحطة» يعيدك إلى الموقع المضبوط على الخادم.",
+            "No match. Try a nearby town or add the country.": "لا نتائج. جرّب بلدة قريبة أو أضف اسم الدولة.",
+            "GPS needs HTTPS, and this page is on plain http, so the browser blocks it. Use search or the station default instead.": "يتطلب GPS اتصال HTTPS وهذه الصفحة على http العادي، لذا يمنعه المتصفح. استخدم البحث أو افتراضي المحطة.",
+            "Sun & Moon": "الشمس والقمر",
+            "Illumination": "نسبة الإضاءة",
+            "Sunrise": "الشروق",
+            "Sunset": "الغروب",
+            "Moonrise": "طلوع القمر",
+            "Moonset": "غروب القمر",
+            "New Moon": "المحاق",
+            "Waxing Crescent": "هلال متزايد",
+            "First Quarter": "التربيع الأول",
+            "Waxing Gibbous": "أحدب متزايد",
+            "Full Moon": "بدر كامل",
+            "Waning Gibbous": "أحدب متناقص",
+            "Last Quarter": "التربيع الأخير",
+            "Waning Crescent": "هلال متناقص",
+            "Sunrise and sunset from Open-Meteo. Moon phase, moonrise and moonset are calculated on this page (about ±10 minutes). A dash means no moonrise or moonset on that calendar day.": "الشروق والغروب من Open-Meteo. أما طور القمر وطلوعه وغروبه فتُحسب في هذه الصفحة (بدقة نحو ±10 دقائق). الشرطة تعني عدم وجود طلوع أو غروب للقمر في ذلك اليوم."
+        };
+
+        // [sample sentence that the rule matches, Arabic template]
+        const TR_AR_RULES = [
+            ["(in 3h)", "(بعد {1} ساعة⟦ (غدًا أو لاحقًا){?2}⟧)"],
+            ["Weather sync failed (HTTP 429). Retrying in 1 minute...", "فشل تحديث الطقس ({1}). إعادة المحاولة بعد دقيقة..."],
+            ["Radar unavailable (x)", "الرادار غير متاح ({1})"],
+            ["15:00 (forecast)", "{1} (توقع)"],
+            ["2 days ahead · 83", "{@1} · {2}"],
+            ["Confidence 84/100", "الثقة {1}/100"],
+            ["How much to trust the forecast at this lead time, judged by the last 7 days (rain call 50%, temperature 25%, rain amount 25%)",
+                "مدى إمكانية الوثوق بالتوقعات عند هذه المدة المسبقة، بحسب آخر {1} أيام (توقع المطر 50%، الحرارة 25%، كمية المطر 25%)"],
+            ["7/7 days", "{1}/{2} أيام"],
+            ["Main cause: Storm cells (3 of 7 days)", "السبب الرئيسي: {@1} ({2} من {3} أيام)"],
+            ["Storm cells (3 of 7 days)", "{@1} ({2} من {3} أيام)"],
+            ["Low-confidence event: 1 day ahead forecasts, Oct 24 – Oct 30", "حدث منخفض الثقة: توقعات {@1}، {2}"],
+            ["Rain was called correctly on only 3 of 7 days, and the max temperature was off by ±1.2°C on average",
+                "توقع المطر كان صحيحًا في {1} من {2} أيام فقط، وانحرفت الحرارة العظمى بمعدل ±{3}°م"],
+            ["Pressure fell 4.6 hPa below the week's average, with gusts up to 48 km/h from the NE",
+                "انخفض الضغط {1} هكتوباسكال عن متوسط الأسبوع⟦، مع هبّات رياح تصل إلى {2} كم/س من {@3}⟧"],
+            ["This points to a low-pressure system (possibly a depression) stronger or closer than forecast: 10.5 mm more rain fell",
+                "يشير هذا إلى منخفض جوي (ربما اضطراب) أقوى أو أقرب مما كان متوقعًا: هطل {1} ملم إضافية من المطر"],
+            ["Intense downpours: up to 12.0 mm/h near 15:00, very unstable air (CAPE 1500 J/kg), thunderstorm conditions for 2 h",
+                "أمطار غزيرة: حتى {1} ملم/س⟦ قرابة {2}⟧⟦، هواء شديد عدم الاستقرار (CAPE {3} جول/كغ)⟧⟦، ظروف عاصفة رعدية لمدة {4} ساعة⟧"],
+            ["Storm cells are smaller than a model grid cell, so their place and strength are hard to forecast (10.5 mm more than expected)",
+                "الخلايا الرعدية أصغر من خلية شبكة النموذج، لذا يصعب توقع مكانها وقوتها ({1} ملم أكثر من المتوقع)"],
+            ["Rain fell in 14 of 24 hours: a slow-moving rain band or trough stayed longer than forecast (+8.0 mm)",
+                "هطل المطر في {1} من 24 ساعة: حزام مطر بطيء الحركة أو منخفض سطحي بقي أطول من المتوقع (+{2} ملم)"],
+            ["Showers were heavier than the model expected (+6.0 mm)", "كانت الزخات أقوى مما توقع النموذج (+{1} ملم)"],
+            ["Forecast 12.0 mm did not reach this spot; the rain band most likely passed or formed nearby",
+                "التوقع {1} ملم لم يصل إلى هذا الموقع؛ على الأرجح مرّ حزام المطر أو تشكل بالقرب"],
+            ["Less rain than forecast (−5.0 mm); no pressure drop was seen, so the expected system stayed weak or tracked away",
+                "مطر أقل من المتوقع (−{1} ملم)⟦؛ لم يُرصد انخفاض في الضغط، فبقي النظام المتوقع ضعيفًا أو ابتعد{?2}⟧"],
+            ["Max temperature was 2.5°C cooler than forecast (cloud and rain cooling)",
+                "كانت الحرارة العظمى {@2} من المتوقع بمقدار {1}°م⟦ (تبريد بفعل الغيوم والمطر){?3}⟧"],
+            ["Missed rain: 0.4 mm forecast but 22.0 mm fell, peaking near 15:00 (14.0 mm/h)",
+                "مطر لم يُتوقع: توقع {1} ملم لكن هطل {2} ملم⟦، بذروة قرابة {3} ({4} ملم/س)⟧"],
+            ["False alarm: 9.3 mm forecast but only 1.8 mm fell", "إنذار كاذب: توقع {1} ملم لكن هطل {2} ملم فقط"],
+            ["Rain amount off: 20.0 mm forecast, 40.0 mm fell (heavier than expected)",
+                "كمية المطر غير دقيقة: توقع {1} ملم، وهطل {2} ملم ({@3} من المتوقع)"],
+            ["Timing off: rain expected to peak near 09:00 but peaked near 17:00",
+                "التوقيت خاطئ: كان متوقعًا أن يبلغ المطر ذروته قرابة {1} لكنه بلغها قرابة {2}"],
+            ["Max temperature off by 3.5°C (30° forecast, 27° actual, cooler than expected)",
+                "انحرفت الحرارة العظمى بمقدار {1}°م (توقع {2}°، فعلي {3}°، {@4} من المتوقع)"],
+            ["Search failed (x)", "فشل البحث ({1})"],
+            ["Location unavailable (x)", "الموقع غير متاح ({1})"],
+            ["No data for this lead time (x)", "لا توجد بيانات لهذه المدة ({1})"],
+            ["Accuracy data unavailable (x)", "بيانات الدقة غير متاحة ({1})"],
+            ["Weather app • Forecast updated 14:00:00", "تطبيق الطقس • آخر تحديث للتوقعات {1}"],
+            ["Next: 🌑 New Moon · Nov 9", "التالي: {1} {@2} · {3}"]
+        ];
+        if (LANG === "ar") {
+            Object.keys(TR_AR_ROWS).forEach(k => { TR_DICT[k] = TR_AR_ROWS[k]; });
+            const arIdx = {};
+            TR_AR_RULES.forEach(x => {
+                for (let i = 0; i < TR_RULES_SRC.length; i++) {
+                    if (TR_RULES_SRC[i][0].test(x[0])) { arIdx[i] = x[1]; break; }
+                }
+            });
+            TR_RULES_SRC.forEach((r, i) => { if (arIdx[i] !== undefined) TR_RULES.push({ rx: r[0], tpl: arIdx[i] }); });
+
+            // Right-to-left layout; the map keeps its normal direction
+            document.documentElement.dir = "rtl";
+            const rs = document.createElement("style");
+            rs.textContent = "html[dir=rtl] .leaflet-container, html[dir=rtl] #map, html[dir=rtl] iframe { direction: ltr; }"
+                + "html[dir=rtl] body { font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, 'DejaVu Sans', sans-serif; }";
+            document.head.appendChild(rs);
+            // Arabic font: downloaded from Google Fonts only for visitors who chose Arabic
+            const al = document.createElement("link");
+            al.rel = "stylesheet";
+            al.href = "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap";
+            document.head.appendChild(al);
+        }
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -1628,7 +1827,7 @@
             if (q) q.placeholder = trAny(q.placeholder);
             trWalk(document.body);
             trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
-            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ", zh: "气象站", ru: "Метеостанция", sv: "Väderstation" };
+            const names = { fr: "Station météo", de: "Wetterstation", th: "สถานีพยากรณ์อากาศ", zh: "气象站", ru: "Метеостанция", sv: "Väderstation", ar: "محطة الطقس" };
             document.title = LOC.name.split(",")[0] + " · " + names[LANG];
         })();
     
