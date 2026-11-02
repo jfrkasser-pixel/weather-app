@@ -124,6 +124,15 @@
         .mc { position: relative; display: inline-block; }
         .mc-cloud { position: absolute; right: -0.4em; bottom: -0.1em; font-size: 0.7em; }
         .mc-cloud.sm { font-size: 0.5em; opacity: 0.85; }
+        .obs-q { font-weight: 700; color: #e2e8f0; margin-bottom: 0.6rem; }
+        .obs-now { font-size: 0.95rem; color: #38bdf8; font-weight: 700; margin-bottom: 0.7rem; }
+        .obs-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 0.6rem; }
+        .obs-btn { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 0.9rem; padding: 0.8rem 0.6rem; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .obs-btn:hover, .obs-btn:focus { border-color: #38bdf8; outline: none; }
+        .obs-btn:disabled { opacity: 0.5; cursor: default; }
+        .obs-msg { margin-top: 0.7rem; font-size: 0.9rem; color: #86efac; font-weight: 600; min-height: 1.2em; }
+        .obs-msg.warn { color: #fbbf24; }
+        .obs-info { margin-top: 0.4rem; font-size: 0.85rem; color: #cbd5e1; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -208,6 +217,20 @@
         </div>
 
         <div class="footer" style="margin-top:1.5rem;margin-bottom:0">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:#7dd3fc">Open-Meteo.com</a> · Radar by <a href="https://www.rainviewer.com" target="_blank" rel="noopener" style="color:#7dd3fc">Rain Viewer</a> · Maps © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:#7dd3fc">OpenStreetMap</a> contributors</div>
+
+        <div class="strip-card" id="obs-card" style="margin-top:1.25rem">
+            <div class="strip-title">Rain report</div>
+            <div class="obs-q">Is it raining where you are right now?</div>
+            <div class="obs-now" id="obs-now"></div>
+            <div class="obs-btns" id="obs-btns">
+                <button type="button" class="obs-btn" data-r="0">☀️ No, dry</button>
+                <button type="button" class="obs-btn" data-r="1">🌦️ Yes, light rain</button>
+                <button type="button" class="obs-btn" data-r="2">🌧️ Yes, heavy rain</button>
+            </div>
+            <div class="obs-msg" id="obs-msg"></div>
+            <div class="obs-info" id="obs-info"></div>
+            <div class="sm-note" id="obs-note"></div>
+        </div>
 
         <div class="footer" id="footer">Weather app</div>
     </div>
@@ -405,6 +428,7 @@
                 renderBanner(data.hourly, i);
                 renderHourly(data.hourly, i);
                 renderDays(data.daily, data.hourly, i);
+                try { renderObs(data.hourly, i); } catch (e) { console.error(e); }
                 renderSunMoon(data.daily);
                 document.getElementById("footer").textContent =
                     "Weather app • Forecast updated " + new Date().toLocaleTimeString("en-GB", { timeZone: TZ });
@@ -1488,6 +1512,36 @@
             TR_RULES_SRC.forEach((r, i) => { if (svIdx[i] !== undefined) TR_RULES.push({ rx: r[0], tpl: svIdx[i] }); });
         }
 
+        // ---------- Rain report translations ----------
+        // columns: key, fr, de, th, zh, ru, sv, ar
+        const TR_OBS = [
+            ["Rain report", "Signalement de pluie", "Regenmeldung", "รายงานฝน", "降雨报告", "Сообщение о дожде", "Regnrapport", "بلاغ المطر"],
+            ["Is it raining where you are right now?", "Pleut-il là où vous êtes en ce moment ?", "Regnet es gerade dort, wo Sie sind?", "ตอนนี้ที่คุณอยู่ฝนตกไหม", "您所在的地方现在下雨吗？", "Идёт ли дождь там, где вы сейчас?", "Regnar det där du är just nu?", "هل تمطر الآن حيث أنت؟"],
+            ["No, dry", "Non, il fait sec", "Nein, trocken", "ไม่ตก (แห้ง)", "没有，天是干的", "Нет, сухо", "Nej, torrt", "لا، الجو جاف"],
+            ["Yes, light rain", "Oui, pluie faible", "Ja, leichter Regen", "ตก ฝนเล็กน้อย", "有，小雨", "Да, небольшой дождь", "Ja, lätt regn", "نعم، مطر خفيف"],
+            ["Yes, heavy rain", "Oui, forte pluie", "Ja, starker Regen", "ตก ฝนหนัก", "有，大雨", "Да, сильный дождь", "Ja, kraftigt regn", "نعم، مطر غزير"],
+            ["Thank you! Report sent.", "Merci ! Signalement envoyé.", "Danke! Meldung gesendet.", "ขอบคุณ! ส่งรายงานแล้ว", "谢谢！报告已发送。", "Спасибо! Сообщение отправлено.", "Tack! Rapporten skickades.", "شكرًا! تم إرسال البلاغ."],
+            ["Thank you! Saved on this device only.", "Merci ! Enregistré sur cet appareil uniquement.", "Danke! Nur auf diesem Gerät gespeichert.", "ขอบคุณ! บันทึกไว้ในอุปกรณ์นี้เท่านั้น", "谢谢！仅保存在此设备上。", "Спасибо! Сохранено только на этом устройстве.", "Tack! Sparades bara på den här enheten.", "شكرًا! حُفظ على هذا الجهاز فقط."],
+            ["Please wait a few minutes before reporting again.", "Veuillez patienter quelques minutes avant un nouveau signalement.", "Bitte warten Sie einige Minuten, bevor Sie erneut melden.", "โปรดรอสักครู่ก่อนรายงานอีกครั้ง", "请等几分钟后再报告。", "Подождите несколько минут перед следующим сообщением.", "Vänta några minuter innan du rapporterar igen.", "يرجى الانتظار بضع دقائق قبل إرسال بلاغ آخر."],
+            ["Reports are anonymous. Stored: time, place shown on this page (rounded to about 1 km), your answer and a random device code.", "Les signalements sont anonymes. Enregistrés : l'heure, le lieu affiché sur cette page (arrondi à environ 1 km), votre réponse et un code d'appareil aléatoire.", "Meldungen sind anonym. Gespeichert werden: Uhrzeit, der auf dieser Seite angezeigte Ort (auf etwa 1 km gerundet), Ihre Antwort und ein zufälliger Gerätecode.", "รายงานเป็นแบบไม่ระบุตัวตน ข้อมูลที่เก็บ: เวลา ตำแหน่งที่แสดงในหน้านี้ (ปัดเศษประมาณ 1 กม.) คำตอบของคุณ และรหัสอุปกรณ์แบบสุ่ม", "报告是匿名的。保存的内容：时间、本页显示的地点（精确到约 1 公里）、您的回答和一个随机设备代码。", "Сообщения анонимны. Сохраняются: время, место, показанное на этой странице (с округлением до 1 км), ваш ответ и случайный код устройства.", "Rapporter är anonyma. Det som sparas: tid, platsen som visas på sidan (avrundad till cirka 1 km), ditt svar och en slumpmässig enhetskod.", "البلاغات مجهولة المصدر. يُحفظ: الوقت، والموقع المعروض في هذه الصفحة (بتقريب نحو 1 كم)، وإجابتك، ورمز عشوائي للجهاز."],
+            ["Reports stay on this device until a collection server is set up.", "Les signalements restent sur cet appareil tant qu'aucun serveur de collecte n'est configuré.", "Meldungen bleiben auf diesem Gerät, bis ein Sammelserver eingerichtet ist.", "รายงานจะอยู่ในอุปกรณ์นี้จนกว่าจะตั้งค่าเซิร์ฟเวอร์รวบรวมข้อมูล", "在设置收集服务器之前，报告只保存在此设备上。", "Пока не настроен сервер сбора, сообщения хранятся только на этом устройстве.", "Rapporter stannar på den här enheten tills en insamlingsserver har ställts in.", "تبقى البلاغات على هذا الجهاز إلى أن يُعدّ خادم لجمعها."],
+            ["No reports nearby in the last 2 hours.", "Aucun signalement à proximité ces 2 dernières heures.", "Keine Meldungen in der Nähe in den letzten 2 Stunden.", "ไม่มีรายงานใกล้เคียงใน 2 ชั่วโมงที่ผ่านมา", "过去 2 小时附近没有报告。", "За последние 2 часа поблизости сообщений нет.", "Inga rapporter i närheten de senaste 2 timmarna.", "لا توجد بلاغات قريبة خلال الساعتين الماضيتين."],
+            ["Not enough reports yet to adjust the forecast (at least 2 from different devices needed).", "Pas encore assez de signalements pour ajuster la prévision (au moins 2 provenant d'appareils différents).", "Noch nicht genug Meldungen, um die Vorhersage anzupassen (mindestens 2 von verschiedenen Geräten).", "ยังมีรายงานไม่พอที่จะปรับการพยากรณ์ (ต้องมีอย่างน้อย 2 รายงานจากอุปกรณ์ต่างกัน)", "报告还不够多，无法调整预报（至少需要来自不同设备的 2 条）。", "Пока недостаточно сообщений, чтобы скорректировать прогноз (нужно минимум 2 с разных устройств).", "Ännu för få rapporter för att justera prognosen (minst 2 från olika enheter behövs).", "لا توجد بلاغات كافية بعد لتعديل التوقعات (يلزم بلاغان على الأقل من جهازين مختلفين)."]
+        ];
+        const TR_OBS_RULES = [
+            [/^Rain chance now: forecast (\d+)%$/, "Probabilité de pluie maintenant : prévision {1} %", "Regenwahrscheinlichkeit jetzt: Vorhersage {1} %", "โอกาสฝนตกตอนนี้: พยากรณ์ {1}%", "当前降雨概率：预报 {1}%", "Вероятность дождя сейчас: прогноз {1}%", "Regnrisk nu: prognos {1} %", "احتمال المطر الآن: التوقع {1}%"],
+            [/^Rain chance now: forecast (\d+)% \u2192 local reports (\d+)%$/, "Probabilité de pluie maintenant : prévision {1} % \u2192 signalements locaux {2} %", "Regenwahrscheinlichkeit jetzt: Vorhersage {1} % \u2192 lokale Meldungen {2} %", "โอกาสฝนตกตอนนี้: พยากรณ์ {1}% \u2192 รายงานในพื้นที่ {2}%", "当前降雨概率：预报 {1}% \u2192 本地报告 {2}%", "Вероятность дождя сейчас: прогноз {1}% \u2192 местные сообщения {2}%", "Regnrisk nu: prognos {1} % \u2192 lokala rapporter {2} %", "احتمال المطر الآن: التوقع {1}% \u2190 البلاغات المحلية {2}%"],
+            [/^(\d+) reports? within (\d+) km in the last (\d+) h: (\d+) saw rain$/, "{1} signalement(s) dans un rayon de {2} km ces {3} dernières heures : {4} ont vu de la pluie", "{1} Meldung(en) im Umkreis von {2} km in den letzten {3} Std.: {4} sahen Regen", "{1} รายงานในรัศมี {2} กม. ใน {3} ชม. ที่ผ่านมา: {4} รายงานว่าฝนตก", "过去 {3} 小时内 {2} 公里范围内有 {1} 条报告：其中 {4} 条看到下雨", "Сообщений в радиусе {2} км за последние {3} ч: {1}, из них дождь видели {4}", "{1} rapport(er) inom {2} km under de senaste {3} timmarna: {4} såg regn", "{1} بلاغ ضمن {2} كم خلال آخر {3} ساعة: {4} شاهدوا المطر"],
+            [/^Report not sent \((.+)\)\. Saved on this device\.$/, "Signalement non envoyé ({1}). Enregistré sur cet appareil.", "Meldung nicht gesendet ({1}). Auf diesem Gerät gespeichert.", "ส่งรายงานไม่สำเร็จ ({1}) บันทึกไว้ในอุปกรณ์นี้แล้ว", "报告未发送（{1}）。已保存在此设备上。", "Сообщение не отправлено ({1}). Сохранено на этом устройстве.", "Rapporten skickades inte ({1}). Sparad på den här enheten.", "لم يُرسل البلاغ ({1}). حُفظ على هذا الجهاز."],
+            [/^Local reports unavailable \((.+)\)$/, "Signalements locaux indisponibles ({1})", "Lokale Meldungen nicht verfügbar ({1})", "ไม่สามารถโหลดรายงานในพื้นที่ ({1})", "无法获取本地报告（{1}）", "Местные сообщения недоступны ({1})", "Lokala rapporter ej tillgängliga ({1})", "البلاغات المحلية غير متاحة ({1})"]
+        ];
+        (function () {
+            const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
+            if (!k) return;
+            TR_OBS.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+            TR_OBS_RULES.forEach(r => { if (r[k]) TR_RULES.push({ rx: r[0], tpl: r[k] }); });
+        })();
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -1750,6 +1804,150 @@
             zl.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap";
             document.head.appendChild(zl);
         }
+    
+        // ---------- Rain reports ----------
+        var OBS_SERVER = "";
+        var OBS_RADIUS_KM = 15, OBS_HOURS = 2, OBS_GAP_MIN = 10, OBS_PRIOR = 4, OBS_MAX_SHIFT = 40;
+        var OBS_CTX = { p: null }, OBS_POLL = null;
+
+        function obsServer() {
+            if (OBS_SERVER) return OBS_SERVER.replace(/\/+$/, "");
+            try {
+                // On the home network (plain http) the collector runs on the same machine, port 8081
+                if (location.protocol === "http:" && location.hostname) return "http://" + location.hostname + ":8081";
+            } catch (e) {}
+            return "";
+        }
+
+        function obsDev() {
+            try {
+                var d = localStorage.getItem("wx_dev");
+                if (!d) {
+                    d = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now().toString(36)));
+                    d = d.replace(/[^A-Za-z0-9-]/g, "");
+                    localStorage.setItem("wx_dev", d);
+                }
+                return d;
+            } catch (e) {
+                window.__obsAnon = window.__obsAnon || ("anon-" + Math.random().toString(36).slice(2, 12));
+                return window.__obsAnon;
+            }
+        }
+
+        function obsLoad() { try { return JSON.parse(localStorage.getItem("wx_obs") || "[]"); } catch (e) { return []; } }
+        function obsSave(a) { try { localStorage.setItem("wx_obs", JSON.stringify(a.slice(-100))); } catch (e) {} }
+
+        function obsSay(text, warn) {
+            var m = document.getElementById("obs-msg");
+            if (!m) return;
+            m.className = "obs-msg" + (warn ? " warn" : "");
+            m.textContent = text;
+        }
+
+        // Blend the model's chance with what people nearby reported:
+        // the forecast counts as OBS_PRIOR "votes"; each report counts by closeness and freshness.
+        function obsBlend(p, reps) {
+            if (reps.length < 2) return null;
+            var sw = 0, sy = 0;
+            reps.forEach(function (r) {
+                var w = Math.max(0, 1 - r.dist_km / OBS_RADIUS_KM) * Math.exp(-r.age_min / 45);
+                sw += w; sy += w * (r.rain > 0 ? 1 : 0);
+            });
+            if (sw < 0.8) return null;
+            var q = (OBS_PRIOR * (p / 100) + sy) / (OBS_PRIOR + sw) * 100;
+            q = Math.max(p - OBS_MAX_SHIFT, Math.min(p + OBS_MAX_SHIFT, q));
+            return Math.round(Math.max(0, Math.min(100, q)));
+        }
+
+        async function obsRefresh() {
+            var now = document.getElementById("obs-now"), info = document.getElementById("obs-info"), note = document.getElementById("obs-note");
+            if (!now) return;
+            var p = OBS_CTX.p, ep = obsServer();
+            now.textContent = p == null ? "" : "Rain chance now: forecast " + p + "%";
+            info.textContent = "";
+            if (!ep) {
+                note.textContent = "Reports stay on this device until a collection server is set up.";
+                return;
+            }
+            note.textContent = "Reports are anonymous. Stored: time, place shown on this page (rounded to about 1 km), your answer and a random device code.";
+            try {
+                var url = ep + "/api/obs/nearby?lat=" + encodeURIComponent(Number(LOC.lat).toFixed(2)) + "&lon=" + encodeURIComponent(Number(LOC.lon).toFixed(2))
+                    + "&radius=" + OBS_RADIUS_KM + "&hours=" + OBS_HOURS;
+                var r = await fetch(url, { cache: "no-store" });
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                var d = await r.json();
+                var reps = d.reports || [];
+                if (!reps.length) { info.textContent = "No reports nearby in the last 2 hours."; return; }
+                var yes = reps.filter(function (x) { return x.rain > 0; }).length;
+                var line = reps.length + " report" + (reps.length === 1 ? "" : "s") + " within " + OBS_RADIUS_KM + " km in the last " + OBS_HOURS + " h: " + yes + " saw rain";
+                var q = p == null ? null : obsBlend(p, reps);
+                if (q != null) now.textContent = "Rain chance now: forecast " + p + "% \u2192 local reports " + q + "%";
+                info.textContent = line;
+                if (q == null) {
+                    var extra = document.createElement("div");
+                    extra.textContent = "Not enough reports yet to adjust the forecast (at least 2 from different devices needed).";
+                    info.appendChild(extra);
+                }
+            } catch (e) {
+                info.textContent = "Local reports unavailable (" + (e && e.message ? e.message : e) + ")";
+            }
+        }
+
+        async function obsSubmit(rain) {
+            var btns = document.querySelectorAll("#obs-btns .obs-btn");
+            var log = obsLoad(), nowMs = Date.now();
+            var last = log.length ? log[log.length - 1] : null;
+            if (last && nowMs - last.t < OBS_GAP_MIN * 60000) { obsSay("Please wait a few minutes before reporting again.", true); return; }
+            var lat = typeof LOC !== "undefined" ? Number(LOC.lat) : NaN, lon = typeof LOC !== "undefined" ? Number(LOC.lon) : NaN;
+            if (!isFinite(lat) || !isFinite(lon)) return;
+            var rec = { t: nowMs, lat: Math.round(lat * 100) / 100, lon: Math.round(lon * 100) / 100, rain: rain, fc: OBS_CTX.p, sent: false };
+            var ep = obsServer();
+            btns.forEach(function (b) { b.disabled = true; });
+            try {
+                if (ep) {
+                    try {
+                        var r = await fetch(ep + "/api/obs", {
+                            method: "POST", headers: { "Content-Type": "text/plain" },
+                            body: JSON.stringify({ dev: obsDev(), lat: rec.lat, lon: rec.lon, rain: rec.rain, fc: rec.fc, src: "wx-app/1" })
+                        });
+                        if (r.status === 429) { obsSay("Please wait a few minutes before reporting again.", true); return; }
+                        if (!r.ok) throw new Error("HTTP " + r.status);
+                        rec.sent = true;
+                        obsSay("Thank you! Report sent.");
+                    } catch (e) {
+                        obsSay("Report not sent (" + (e && e.message ? e.message : e) + "). Saved on this device.", true);
+                    }
+                } else {
+                    obsSay("Thank you! Saved on this device only.");
+                }
+                log.push(rec);
+                obsSave(log);
+            } finally {
+                btns.forEach(function (b) { b.disabled = false; });
+            }
+            obsRefresh();
+        }
+
+        function renderObs(h, i) {
+            // If the forecast arrives before this script has finished loading, try again right after
+            if (typeof OBS_READY === "undefined" || !OBS_READY) { setTimeout(function () { renderObs(h, i); }, 0); return; }
+            OBS_CTX.p = null;
+            if (h && h.precipitation_probability && h.precipitation_probability[i] != null) {
+                var v = Number(h.precipitation_probability[i]);
+                if (isFinite(v)) OBS_CTX.p = Math.round(Math.max(0, Math.min(100, v)));
+            }
+            var box = document.getElementById("obs-btns");
+            if (box && !box.__bound) {
+                box.__bound = true;
+                box.addEventListener("click", function (ev) {
+                    var b = ev.target.closest ? ev.target.closest(".obs-btn") : null;
+                    if (b && box.contains(b)) obsSubmit(parseInt(b.getAttribute("data-r"), 10));
+                });
+            }
+            obsRefresh();
+            if (!OBS_POLL) OBS_POLL = setInterval(obsRefresh, 300000);
+        }
+        var OBS_READY = true;
     </script>
 </body>
 </html>
