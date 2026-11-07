@@ -158,10 +158,16 @@
         .cm-toggle { display: flex; gap: 0.3rem; margin: 0 0 0.7rem; background: #0f172a; border: 1px solid #334155; border-radius: 999px; padding: 0.2rem; width: max-content; max-width: 100%; }
         .cm-toggle button { background: transparent; border: 0; color: #94a3b8; font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
         .cm-toggle button.on { background: #1e293b; color: #38bdf8; }
-        #forecast-container > * > .sm-day { display: none; background: transparent; border: 0; padding: 0; }
-        #forecast-container.cm-sm > * > *:not(.sm-day) { display: none; }
-        #forecast-container.cm-sm > * > .sm-day { display: block; }
-        .cm-extra { display: none; margin: 0.2rem 0 1rem; }
+        /* cm-side: weather on the left, Sun & Moon on the right, inside each of the 3 cards */
+        #forecast-container { grid-template-columns: minmax(0, 1fr) !important; }
+        #forecast-container > * { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 0; align-items: start; }
+        #forecast-container > * > *:not(.sm-day) { grid-column: 1; padding-right: 0.7rem; min-width: 0; }
+        #forecast-container > * > .sm-day { grid-column: 2; grid-row: 1 / span 40; background: transparent; border: 0; border-left: 1px solid #334155; border-radius: 0; padding: 0 0 0 0.7rem; min-width: 0; text-align: center; align-self: stretch; }
+        #forecast-container .sm-day .sm-title, #forecast-container .sm-day .sm-date { display: none; }
+        #forecast-container .sm-day .sm-moon { font-size: 2.4rem; }
+        #forecast-container .sm-day .sm-name { font-size: 0.9rem; }
+        #forecast-container .sm-day .detail-row { font-size: 0.78rem; padding: 0.3rem 0; gap: 0.3rem; }
+        .cm-extra { display: block; margin: 0.2rem 0 1rem; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -2565,8 +2571,8 @@
             CM_MODE = m;
             try { localStorage.setItem("wx_cardmode", m); } catch (e) {}
             var fc = document.getElementById("forecast-container"), ex = document.getElementById("cm-extra");
-            if (fc) fc.classList.toggle("cm-sm", m === "s");
-            if (ex) ex.style.display = m === "s" ? "block" : "none";
+            if (fc) fc.classList.remove("cm-sm");
+            if (ex) ex.style.display = "block";
             document.querySelectorAll("#cm-toggle button").forEach(function (b) {
                 var on = b.getAttribute("data-m") === m;
                 b.className = on ? "on" : "";
@@ -2590,7 +2596,6 @@
                     b.addEventListener("click", function () { cmSet(x[0]); });
                     tg.appendChild(b);
                 });
-                fc.parentNode.insertBefore(tg, fc);
                 var outer = box.closest ? box.closest(".strip-card") : null;
                 var ex = document.createElement("div");
                 ex.id = "cm-extra"; ex.className = "cm-extra";
