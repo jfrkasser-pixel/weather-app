@@ -1995,7 +1995,7 @@
 
         // ---------- Rain alert translations ----------
         // columns: key, fr, de, th, zh, ru, sv, ar
-        const TR_AL = [
+        const TR_RA = [
             ["Rain alerts", "Alertes pluie", "Regenwarnungen", "การแจ้งเตือนฝน", "降雨提醒", "Предупреждения о дожде", "Regnvarningar", "تنبيهات المطر"],
             ["Share report", "Partager le rapport", "Bericht teilen", "แชร์รายงาน", "分享报告", "Поделиться отчётом", "Dela rapport", "مشاركة التقرير"],
             ["Turn on notifications", "Activer les notifications", "Benachrichtigungen aktivieren", "เปิดการแจ้งเตือน", "开启通知", "Включить уведомления", "Slå på aviseringar", "تشغيل الإشعارات"],
@@ -2006,7 +2006,7 @@
         (function () {
             const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
             if (!k) return;
-            TR_AL.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+            TR_RA.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
         })();
 
         function trFill(tpl, m) {
@@ -2862,7 +2862,7 @@
 
         // highest rain chance in the next 24 hours; one alert per day of the peak
         function alRun(h, i, d) {
-            if (typeof AL_READY === "undefined" || !AL_READY || typeof LG_READY === "undefined" || !LG_READY) { setTimeout(function () { alRun(h, i, d); }, 0); return; }
+            if (typeof RA_READY === "undefined" || !RA_READY || typeof LG_READY === "undefined" || !LG_READY) { setTimeout(function () { alRun(h, i, d); }, 0); return; }
             var banner = "";
             if (h && h.time && h.precipitation_probability) {
                 var best = null;
@@ -2965,7 +2965,7 @@
             a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
             setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
         }
-        var AL_READY = true;
+        var RA_READY = true;
     </script>
 </body>
 </html>
