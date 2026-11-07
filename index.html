@@ -329,8 +329,8 @@
             // rain, storm, fog: the weather code decides
             if (code >= 45 && code < 51) return "🌫️";
             if (code >= 95) return "⛈️";
-            if (code >= 51 && code < 61) return "🌦️";
-            if (code >= 80) return "🌦️";
+            if ((code >= 51 && code < 61) || (code >= 80 && code < 95)) return night && ctx.moon ? nightShower(ctx) : "🌦️";
+            
             if (code >= 61) return "🌧️";
             // dry sky: use the measured cloud cover when it is available
             if (!night) {
@@ -2534,6 +2534,11 @@
             if (!AL_POLL) AL_POLL = setInterval(alRefresh, 900000);
         }
         var AL_READY = true;
+    
+        // ---------- Night showers: the Moon in its phase behind rain ----------
+        function nightShower(ctx) {
+            return '<span class="mc">' + ctx.moon.icon + '<span class="mc-cloud big">🌧️</span></span>';
+        }
     </script>
 </body>
 </html>
