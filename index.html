@@ -168,6 +168,26 @@
         #forecast-container .sm-day .sm-name { font-size: 0.9rem; }
         #forecast-container .sm-day .detail-row { font-size: 0.78rem; padding: 0.3rem 0; gap: 0.3rem; }
         .cm-extra { display: block; margin: 0.2rem 0 1rem; }
+        .lg-fixes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.35rem; margin-bottom: 0.6rem; }
+        .lg-fix { background: #0f172a; border: 1px solid #334155; border-radius: 0.7rem; padding: 0.4rem 0; text-align: center; font-size: 0.8rem; color: #94a3b8; font-weight: 700; }
+        .lg-fix b { display: block; font-size: 0.95rem; color: #e2e8f0; }
+        .lg-fix.done { border-color: #22c55e; color: #86efac; }
+        .lg-fix.due { border-color: #fbbf24; color: #fbbf24; }
+        .lg-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 0.5rem 0; }
+        .lg-tbl th { text-align: right; color: #94a3b8; font-weight: 700; padding: 0.3rem 0.2rem; border-bottom: 1px solid #334155; }
+        .lg-tbl td { text-align: right; padding: 0.35rem 0.2rem; border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+        .lg-tbl th:first-child, .lg-tbl td:first-child { text-align: left; }
+        .lg-tbl tr.few td { color: #64748b; }
+        .lg-sum { font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; }
+        .lg-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+        .lg-btn { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 0.8rem; padding: 0.6rem 0.9rem; font-size: 0.9rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .lg-btn:hover, .lg-btn:focus { border-color: #38bdf8; outline: none; }
+        .lg-btn.danger { color: #fca5a5; }
+        .lg-state { margin-top: 0.6rem; font-size: 0.82rem; color: #94a3b8; }
+        .al-banner { background: #3b1d1d; border: 1px solid #ef4444; color: #fecaca; border-radius: 0.9rem; padding: 0.7rem 0.9rem; font-weight: 700; margin-bottom: 0.7rem; font-size: 0.92rem; }
+        .al-row { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid #1e293b; font-size: 0.88rem; color: #e2e8f0; }
+        .al-row span:last-child { text-align: right; font-weight: 700; }
+        .al-hit { color: #86efac; } .al-miss { color: #fca5a5; } .al-wait { color: #fbbf24; } .al-none { color: #94a3b8; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -283,6 +303,29 @@
             <div class="obs-msg" id="obs-msg"></div>
             <div class="obs-info" id="obs-info"></div>
             <div class="sm-note" id="obs-note"></div>
+        </div>
+
+        <div class="strip-card" id="lg-card" style="margin-top:1.25rem">
+            <div class="strip-title">My accuracy</div>
+            <div class="lg-fixes" id="lg-fixes"></div>
+            <div class="lg-sum" id="lg-sum"></div>
+            <table class="lg-tbl" id="lg-tbl"></table>
+            <div class="lg-btns">
+                <button type="button" class="lg-btn" id="lg-csv">Export CSV</button>
+                <button type="button" class="lg-btn" id="lg-share">Share report</button>
+                <button type="button" class="lg-btn danger" id="lg-clear">Clear log</button>
+            </div>
+            <div class="lg-state" id="lg-state"></div>
+            <div class="sm-note" id="lg-note">Reports are kept on this device. Observations are citizen reports, not gauge measurements.</div>
+        </div>
+
+        <div class="strip-card" id="al-card" style="margin-top:1.25rem">
+            <div class="strip-title">Rain alerts</div>
+            <div id="al-banner"></div>
+            <div class="lg-sum" id="al-sum"></div>
+            <div id="al-list"></div>
+            <div class="lg-btns"><button type="button" class="lg-btn" id="al-perm">Turn on notifications</button></div>
+            <div class="sm-note" id="al-note">An alert is raised when the rain chance in the next 24 hours goes above 75%. The next day it is checked against the reports made that day.</div>
         </div>
 
         <div class="footer" id="footer">Weather app</div>
@@ -537,6 +580,8 @@
                 renderBanner(data.hourly, i);
                 renderHourly(data.hourly, i);
                 renderDays(data.daily, data.hourly, i);
+                try { lgInit(); } catch (e) { console.error(e); }
+                try { alRun(data.hourly, i, data.daily); } catch (e) { console.error(e); }
                 try { renderAlerts(); } catch (e) { console.error(e); }
                 try { renderWindy(); } catch (e) { console.error(e); }
                 try { renderSky(data.hourly, i); } catch (e) { console.error(e); }
@@ -1928,6 +1973,42 @@
             TR_CM.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
         })();
 
+        // ---------- My accuracy translations ----------
+        // columns: key, fr, de, th, zh, ru, sv, ar
+        const TR_LG = [
+            ["My accuracy", "Ma précision", "Meine Trefferquote", "ความแม่นยำของฉัน", "我的准确度", "Моя точность", "Min träffsäkerhet", "دقتي"],
+            ["Export CSV", "Exporter en CSV", "CSV exportieren", "ส่งออก CSV", "导出 CSV", "Экспорт CSV", "Exportera CSV", "تصدير CSV"],
+            ["Email report", "Envoyer le rapport par e-mail", "Bericht per E-Mail", "ส่งรายงานทางอีเมล", "邮件发送报告", "Отправить отчёт по почте", "Mejla rapport", "إرسال التقرير بالبريد"],
+            ["Clear log", "Effacer le journal", "Protokoll löschen", "ล้างบันทึก", "清除记录", "Очистить журнал", "Rensa loggen", "مسح السجل"],
+            ["Forecast", "Prévision", "Vorhersage", "พยากรณ์", "预报", "Прогноз", "Prognos", "التوقع"],
+            ["Reports", "Signalements", "Meldungen", "รายงาน", "报告", "Сообщения", "Rapporter", "البلاغات"],
+            ["Rained", "Pluie", "Regen", "ฝนตก", "下雨", "Дождь", "Regn", "أمطرت"],
+            ["Observed", "Observé", "Beobachtet", "ที่เกิดจริง", "实际", "Наблюдалось", "Observerat", "الفعلي"],
+            ["Reports are kept on this device. Observations are citizen reports, not gauge measurements.", "Les signalements sont conservés sur cet appareil. Ce sont des observations de citoyens, pas des mesures de pluviomètre.", "Meldungen bleiben auf diesem Gerät. Es sind Bürgerbeobachtungen, keine Regenmesser-Daten.", "รายงานถูกเก็บไว้ในอุปกรณ์นี้ เป็นข้อมูลจากประชาชน ไม่ใช่ค่าจากเครื่องวัดน้ำฝน", "报告保存在此设备上。这些是市民报告，不是雨量计测量值。", "Сообщения хранятся на этом устройстве. Это наблюдения жителей, а не измерения осадкомера.", "Rapporter sparas på den här enheten. Det är medborgarobservationer, inte mätningar från regnmätare.", "تُحفظ البلاغات على هذا الجهاز. وهي ملاحظات مواطنين وليست قياسات مقياس مطر."],
+            ["No reports yet. Answer the rain question at 06, 09, 12, 15, 18 and 21 h.", "Aucun signalement. Répondez à la question sur la pluie à 6, 9, 12, 15, 18 et 21 h.", "Noch keine Meldungen. Beantworten Sie die Regenfrage um 6, 9, 12, 15, 18 und 21 Uhr.", "ยังไม่มีรายงาน โปรดตอบคำถามเรื่องฝนเวลา 06, 09, 12, 15, 18 และ 21 น.", "还没有报告。请在 6、9、12、15、18 和 21 点回答降雨问题。", "Пока нет сообщений. Отвечайте на вопрос о дожде в 6, 9, 12, 15, 18 и 21 ч.", "Inga rapporter än. Svara på regnfrågan kl. 06, 09, 12, 15, 18 och 21.", "لا توجد بلاغات بعد. أجب عن سؤال المطر عند 6 و9 و12 و15 و18 و21."]
+        ];
+        (function () {
+            const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
+            if (!k) return;
+            TR_LG.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+        })();
+
+        // ---------- Rain alert translations ----------
+        // columns: key, fr, de, th, zh, ru, sv, ar
+        const TR_AL = [
+            ["Rain alerts", "Alertes pluie", "Regenwarnungen", "การแจ้งเตือนฝน", "降雨提醒", "Предупреждения о дожде", "Regnvarningar", "تنبيهات المطر"],
+            ["Share report", "Partager le rapport", "Bericht teilen", "แชร์รายงาน", "分享报告", "Поделиться отчётом", "Dela rapport", "مشاركة التقرير"],
+            ["Turn on notifications", "Activer les notifications", "Benachrichtigungen aktivieren", "เปิดการแจ้งเตือน", "开启通知", "Включить уведомления", "Slå på aviseringar", "تشغيل الإشعارات"],
+            ["No alerts so far.", "Aucune alerte pour le moment.", "Bisher keine Warnungen.", "ยังไม่มีการแจ้งเตือน", "目前没有提醒。", "Пока предупреждений нет.", "Inga varningar hittills.", "لا توجد تنبيهات حتى الآن."],
+            ["pending", "en attente", "ausstehend", "รอตรวจสอบ", "待核对", "ожидает проверки", "väntar", "قيد الانتظار"],
+            ["An alert is raised when the rain chance in the next 24 hours goes above 75%. The next day it is checked against the reports made that day.", "Une alerte est émise lorsque la probabilité de pluie dans les 24 prochaines heures dépasse 75 %. Le lendemain, elle est comparée aux signalements du jour.", "Eine Warnung wird ausgelöst, wenn die Regenwahrscheinlichkeit in den nächsten 24 Stunden über 75 % liegt. Am nächsten Tag wird sie mit den Meldungen dieses Tages verglichen.", "ระบบจะแจ้งเตือนเมื่อโอกาสฝนตกใน 24 ชั่วโมงข้างหน้าสูงกว่า 75% และวันรุ่งขึ้นจะตรวจเทียบกับรายงานของวันนั้น", "未来 24 小时降雨概率超过 75% 时发出提醒，次日与当天的报告进行核对。", "Предупреждение выдаётся, если вероятность дождя в ближайшие 24 часа выше 75%. На следующий день оно сверяется с сообщениями за этот день.", "يُرسل تنبيه عندما يتجاوز احتمال المطر خلال 24 ساعة القادمة 75%، ويُقارن في اليوم التالي ببلاغات ذلك اليوم.", ]
+        ];
+        (function () {
+            const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
+            if (!k) return;
+            TR_AL.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+        })();
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -2308,6 +2389,7 @@
                 }
                 log.push(rec);
                 obsSave(log);
+                try { lgAdd(rec); } catch (e) { console.error(e); }
             } finally {
                 btns.forEach(function (b) { b.disabled = false; });
             }
@@ -2612,6 +2694,278 @@
             cmSet(CM_MODE);
         }
         var CM_READY = true;
+    
+        // ---------- Local report log, accuracy table, CSV and e-mail report ----------
+        var LG_MAILER = "";
+        var LG_SLOTS = [6, 9, 12, 15, 18, 21], LG_WIN = 90, LG_MAX = 4000, LG_TIMER = null, LG_STATE = "";
+
+        function lgEp() {
+            if (LG_MAILER) return LG_MAILER.replace(/\/+$/, "");
+            try { if (location.protocol === "http:" && location.hostname) return "http://" + location.hostname + ":8083"; } catch (e) {}
+            return "";
+        }
+        function lgLoad() { try { var a = JSON.parse(localStorage.getItem("wx_log") || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+        function lgSave(a) { try { localStorage.setItem("wx_log", JSON.stringify(a.slice(-LG_MAX))); } catch (e) {} }
+        function lgP2(n) { return (n < 10 ? "0" : "") + n; }
+        function lgDay(ms) { var d = new Date(ms); return d.getFullYear() + "-" + lgP2(d.getMonth() + 1) + "-" + lgP2(d.getDate()); }
+        function lgHM(ms) { var d = new Date(ms); return lgP2(d.getHours()) + ":" + lgP2(d.getMinutes()); }
+
+        // the fixed daily check times; a report within 90 minutes of one counts for it
+        function lgSlotOf(ms) {
+            var d = new Date(ms), m = d.getHours() * 60 + d.getMinutes(), best = -1, bd = 1e9;
+            LG_SLOTS.forEach(function (h) { var x = Math.abs(m - h * 60); if (x < bd) { bd = x; best = h; } });
+            return bd <= LG_WIN ? best : -1;
+        }
+
+        function lgAdd(rec) {
+            var a = lgLoad();
+            a.push({ id: rec.t, t: rec.t, lat: rec.lat, lon: rec.lon, rain: rec.rain, fc: rec.fc == null ? null : rec.fc, slot: lgSlotOf(rec.t), sy: 0 });
+            lgSave(a);
+            lgRender();
+            lgSync();
+        }
+
+        function lgStats(a) {
+            var bins = [0, 1, 2, 3, 4].map(function () { return [0, 0]; }), n = 0, yes = 0, hit = 0, br = 0, fs = 0;
+            a.forEach(function (r) {
+                if (r.fc == null) return;
+                var o = r.rain > 0 ? 1 : 0, b = Math.min(4, Math.floor(r.fc / 20));
+                bins[b][0]++; bins[b][1] += o; n++; yes += o; fs += r.fc;
+                if ((r.fc >= 50) === (o === 1)) hit++;
+                br += Math.pow(r.fc / 100 - o, 2);
+            });
+            return { n: n, bins: bins, hit: n ? 100 * hit / n : null, brier: n ? br / n : null, bias: n ? fs / n - 100 * yes / n : null };
+        }
+        var LG_LAB = ["0-19%", "20-39%", "40-59%", "60-79%", "80-100%"];
+
+        function lgCell(tr, text, th) { var c = document.createElement(th ? "th" : "td"); c.textContent = text; tr.appendChild(c); }
+
+        function lgRender() {
+            var fx = document.getElementById("lg-fixes"), sum = document.getElementById("lg-sum"), tb = document.getElementById("lg-tbl"), st = document.getElementById("lg-state");
+            if (!fx || !sum || !tb) return;
+            var a = lgLoad(), now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), today = lgDay(now.getTime());
+            var done = {};
+            a.forEach(function (r) { if (r.slot > -1 && lgDay(r.t) === today) done[r.slot] = true; });
+            fx.textContent = "";
+            LG_SLOTS.forEach(function (h) {
+                var d = document.createElement("div"), cls = "lg-fix", mark = "·";
+                if (done[h]) { cls += " done"; mark = "✓"; }
+                else if (Math.abs(nowMin - h * 60) <= LG_WIN) { cls += " due"; mark = "●"; }
+                else if (nowMin > h * 60) { mark = "–"; }
+                d.className = cls;
+                var b = document.createElement("b"); b.textContent = lgP2(h);
+                d.appendChild(b); d.appendChild(document.createTextNode(mark));
+                fx.appendChild(d);
+            });
+            var s = lgStats(a);
+            if (!a.length) sum.textContent = "No reports yet. Answer the rain question at 06, 09, 12, 15, 18 and 21 h.";
+            else {
+                var t = a.length + " reports, " + s.n + " with a forecast value.";
+                if (s.n) t += " Hit rate " + Math.round(s.hit) + "% · bias " + (s.bias >= 0 ? "+" : "") + Math.round(s.bias) + " points · Brier " + s.brier.toFixed(3);
+                sum.textContent = t;
+            }
+            tb.textContent = "";
+            var hr = document.createElement("tr");
+            ["Forecast", "Reports", "Rained", "Observed"].forEach(function (x) { lgCell(hr, x, true); });
+            tb.appendChild(hr);
+            s.bins.forEach(function (b, i) {
+                var tr = document.createElement("tr");
+                if (b[0] > 0 && b[0] < 10) tr.className = "few";
+                lgCell(tr, LG_LAB[i]); lgCell(tr, String(b[0])); lgCell(tr, String(b[1])); lgCell(tr, b[0] ? Math.round(100 * b[1] / b[0]) + "%" : "-");
+                tb.appendChild(tr);
+            });
+            if (st) st.textContent = LG_STATE;
+        }
+
+        function lgCsv() {
+            var q = function (v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+            var rows = [["utc_time", "local_time", "fix_slot", "lat", "lon", "forecast_pct", "rain_0dry_1light_2heavy", "rained"]];
+            lgLoad().forEach(function (r) {
+                rows.push([new Date(r.t).toISOString(), lgDay(r.t) + " " + lgHM(r.t), r.slot > -1 ? r.slot : "", r.lat, r.lon, r.fc == null ? "" : r.fc, r.rain, r.rain > 0 ? 1 : 0]);
+            });
+            return rows.map(function (r) { return r.map(q).join(","); }).join("\r\n") + "\r\n";
+        }
+
+        function lgText() {
+            var a = lgLoad(), s = lgStats(a), L = [];
+            L.push("Rain reports vs forecast");
+            L.push("Reports: " + a.length + (a.length ? " (" + lgDay(a[0].t) + " to " + lgDay(a[a.length - 1].t) + ")" : ""));
+            L.push("");
+            s.bins.forEach(function (b, i) { L.push("Forecast " + LG_LAB[i] + ": " + b[0] + " reports, rained " + b[1] + (b[0] ? " (" + Math.round(100 * b[1] / b[0]) + "%)" : "")); });
+            if (s.n) { L.push(""); L.push("Hit rate " + Math.round(s.hit) + "%, bias " + Math.round(s.bias) + " points, Brier " + s.brier.toFixed(3)); }
+            L.push("");
+            L.push("Citizen reports (Yes/No: is it raining here now?), forecast from Open-Meteo.");
+            return L.join("\n");
+        }
+
+        function lgDownload() {
+            var blob = new Blob([lgCsv()], { type: "text/csv;charset=utf-8" }), url = URL.createObjectURL(blob), a = document.createElement("a");
+            a.href = url; a.download = "rain_reports_" + lgDay(Date.now()) + ".csv";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        }
+
+        // Copies of new reports go to the home mailer, which sends the daily e-mail by itself
+        async function lgSync() {
+            var ep = lgEp();
+            if (!ep) { LG_STATE = "Daily e-mail: not connected (the mailer service is not reachable from this page)."; lgRender(); return; }
+            var a = lgLoad(), pend = a.filter(function (r) { return !r.sy; }).slice(0, 200);
+            if (!pend.length) { if (!LG_STATE || LG_STATE.indexOf("not connected") > -1 || LG_STATE.indexOf("failed") > -1) { LG_STATE = "Daily e-mail: connected. All reports copied to the mailer."; lgRender(); } return; }
+            try {
+                var r = await fetch(ep + "/api/log", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ dev: obsDev(), recs: pend }) });
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                var d = await r.json(), ok = {};
+                (d.stored || []).forEach(function (id) { ok[id] = 1; });
+                var all = lgLoad();
+                all.forEach(function (x) { if (ok[x.id]) x.sy = 1; });
+                lgSave(all);
+                LG_STATE = "Daily e-mail: connected. " + (d.stored || []).length + " report(s) copied to the mailer.";
+            } catch (e) {
+                LG_STATE = "Daily e-mail: sending to the mailer failed (" + (e && e.message ? e.message : e) + "). Will retry.";
+            }
+            lgRender();
+        }
+
+        function lgInit() {
+            if (typeof LG_READY === "undefined" || !LG_READY || typeof OBS_READY === "undefined" || !OBS_READY) { setTimeout(lgInit, 0); return; }
+            var card = document.getElementById("lg-card");
+            if (card && !card.__bound) {
+                card.__bound = true;
+                document.getElementById("lg-csv").addEventListener("click", lgDownload);
+                document.getElementById("lg-share").addEventListener("click", function () { alShare(); });
+                document.getElementById("lg-clear").addEventListener("click", function () {
+                    if (confirm("Delete all saved reports on this device?")) { lgSave([]); lgRender(); }
+                });
+            }
+            lgRender();
+            lgSync();
+            if (!LG_TIMER) LG_TIMER = setInterval(function () { lgRender(); lgSync(); }, 600000);
+        }
+        var LG_READY = true;
+    
+        // ---------- Rain alerts above 75%, checked the next day (J+1), shareable report ----------
+        var AL_PCT = 75, AL_PUSH = false;
+        function alLoad() { try { var a = JSON.parse(localStorage.getItem("wx_alerts") || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+        function alSave(a) { try { localStorage.setItem("wx_alerts", JSON.stringify(a.slice(-120))); } catch (e) {} }
+
+        function alNotify(title, body) {
+            try {
+                if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;
+                if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+                    navigator.serviceWorker.getRegistration().then(function (r) { if (r && r.showNotification) r.showNotification(title, { body: body }); else new Notification(title, { body: body }); }).catch(function () { try { new Notification(title, { body: body }); } catch (e2) {} });
+                    return true;
+                }
+                new Notification(title, { body: body });
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // highest rain chance in the next 24 hours; one alert per day of the peak
+        function alRun(h, i, d) {
+            if (typeof AL_READY === "undefined" || !AL_READY || typeof LG_READY === "undefined" || !LG_READY) { setTimeout(function () { alRun(h, i, d); }, 0); return; }
+            var banner = "";
+            if (h && h.time && h.precipitation_probability) {
+                var best = null;
+                for (var k = i; k < Math.min(h.time.length, i + 24); k++) {
+                    var v = h.precipitation_probability[k];
+                    if (v != null && (!best || v > best.v)) best = { v: Number(v), t: h.time[k] };
+                }
+                if (best && best.v > AL_PCT) {
+                    var day = best.t.slice(0, 10), at = best.t.slice(11, 16), a = alLoad(), ex = null;
+                    a.forEach(function (x) { if (x.day === day) ex = x; });
+                    if (!ex) {
+                        a.push({ day: day, peak: best.v, at: at, issued: Date.now(), status: "pending", n: 0, yes: 0, mm: null, verdict: "" });
+                        alSave(a);
+                        alNotify("Rain alert: " + best.v + "% around " + at, "Rain chance above " + AL_PCT + "% in the next 24 hours. Please report at your next check time.");
+                    } else if (best.v > ex.peak) { ex.peak = best.v; ex.at = at; alSave(a); }
+                    banner = "⚠ Rain chance up to " + best.v + "% around " + at + " (" + day + ")";
+                }
+            }
+            alValidate(d);
+            alRender(banner);
+        }
+
+        // J+1: every alert from an earlier day is compared with the reports made on that day
+        function alValidate(d) {
+            var a = alLoad(), log = lgLoad(), today = lgDay(Date.now()), changed = false, mm = {};
+            if (d && d.time && d.precipitation_sum) d.time.forEach(function (t, n) { mm[t] = d.precipitation_sum[n]; });
+            a.forEach(function (x) {
+                if (x.status !== "pending" || x.day >= today) return;
+                var rows = log.filter(function (r) { return lgDay(r.t) === x.day; });
+                x.n = rows.length; x.yes = rows.filter(function (r) { return r.rain > 0; }).length;
+                x.mm = mm[x.day] != null ? mm[x.day] : null;
+                x.verdict = x.n === 0 ? "UNVERIFIED" : (x.yes > 0 ? "HIT" : "FALSE ALARM");
+                x.status = "done"; changed = true;
+                alNotify("Alert check " + x.day + ": " + x.verdict, x.yes + " of " + x.n + " reports saw rain (alert " + x.peak + "% at " + x.at + ")");
+            });
+            if (changed) alSave(a);
+        }
+
+        function alRender(banner) {
+            var bn = document.getElementById("al-banner"), sum = document.getElementById("al-sum"), list = document.getElementById("al-list"), perm = document.getElementById("al-perm");
+            if (!bn || !list) return;
+            bn.textContent = "";
+            if (banner) { var b = document.createElement("div"); b.className = "al-banner"; b.textContent = banner; bn.appendChild(b); }
+            var a = alLoad().slice().reverse(), done = a.filter(function (x) { return x.status === "done" && x.n > 0; }), hits = done.filter(function (x) { return x.verdict === "HIT"; }).length;
+            sum.textContent = a.length ? (a.length + " alert" + (a.length === 1 ? "" : "s") + " so far" + (done.length ? ", " + hits + " of " + done.length + " confirmed by reports (" + Math.round(100 * hits / done.length) + "%)" : "")) : "No alerts so far.";
+            list.textContent = "";
+            a.slice(0, 7).forEach(function (x) {
+                var row = document.createElement("div"), l = document.createElement("span"), r = document.createElement("span");
+                row.className = "al-row";
+                l.textContent = x.day + " · " + x.peak + "% at " + x.at;
+                if (x.status === "pending") { r.className = "al-wait"; r.textContent = "pending"; }
+                else if (x.verdict === "HIT") { r.className = "al-hit"; r.textContent = "✓ rain reported (" + x.yes + "/" + x.n + ")"; }
+                else if (x.verdict === "FALSE ALARM") { r.className = "al-miss"; r.textContent = "✗ no rain reported (0/" + x.n + ")"; }
+                else { r.className = "al-none"; r.textContent = "no reports" + (x.mm != null ? " · model " + Number(x.mm).toFixed(1) + " mm" : ""); }
+                row.appendChild(l); row.appendChild(r); list.appendChild(row);
+            });
+            if (perm) {
+                var supported = typeof Notification !== "undefined";
+                perm.style.display = supported && Notification.permission === "default" ? "" : "none";
+                if (!perm.__bound) {
+                    perm.__bound = true;
+                    perm.addEventListener("click", function () { try { Notification.requestPermission().then(function () { alRender(banner); }); } catch (e) {} });
+                }
+            }
+        }
+
+        function alHtml() {
+            var esc = function (t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+            var a = lgLoad(), st = lgStats(a), al = alLoad().slice().reverse(), h = [];
+            h.push("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Rain report vs forecast</title>");
+            h.push("<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:1.2rem auto;padding:0 1rem;color:#0f172a}table{border-collapse:collapse;width:100%;margin:.6rem 0}th,td{border-bottom:1px solid #cbd5e1;padding:.35rem .4rem;text-align:right}th:first-child,td:first-child{text-align:left}small{color:#475569}h1{font-size:1.3rem}h2{font-size:1.05rem;margin-top:1.4rem}</style></head><body>");
+            h.push("<h1>Rain reports vs forecast</h1><small>Generated " + esc(lgDay(Date.now()) + " " + lgHM(Date.now())) + (typeof LOC !== "undefined" ? " · location " + Number(LOC.lat).toFixed(2) + ", " + Number(LOC.lon).toFixed(2) : "") + "</small>");
+            h.push("<h2>Forecast chance against what was reported</h2><table><tr><th>Forecast</th><th>Reports</th><th>Rained</th><th>Observed</th></tr>");
+            st.bins.forEach(function (b, i) { h.push("<tr><td>" + LG_LAB[i] + "</td><td>" + b[0] + "</td><td>" + b[1] + "</td><td>" + (b[0] ? Math.round(100 * b[1] / b[0]) + "%" : "-") + (b[0] > 0 && b[0] < 10 ? " (few)" : "") + "</td></tr>"); });
+            h.push("</table>");
+            if (st.n) h.push("<p>" + a.length + " reports (" + esc(lgDay(a[0].t)) + " to " + esc(lgDay(a[a.length - 1].t)) + "). Hit rate " + Math.round(st.hit) + "% · bias " + (st.bias >= 0 ? "+" : "") + Math.round(st.bias) + " points · Brier score " + st.brier.toFixed(3) + ".</p>");
+            else h.push("<p>No reports yet.</p>");
+            h.push("<h2>Alerts above " + AL_PCT + "%, checked the next day</h2>");
+            if (!al.length) h.push("<p>No alerts so far.</p>");
+            else {
+                h.push("<table><tr><th>Day</th><th>Peak</th><th>Result next day</th></tr>");
+                al.slice(0, 30).forEach(function (x) {
+                    var res = x.status === "pending" ? "pending" : x.verdict === "HIT" ? "rain reported (" + x.yes + " of " + x.n + ")" : x.verdict === "FALSE ALARM" ? "no rain reported (0 of " + x.n + ")" : "no reports" + (x.mm != null ? ", model " + Number(x.mm).toFixed(1) + " mm" : "");
+                    h.push("<tr><td>" + esc(x.day) + "</td><td>" + x.peak + "% at " + esc(x.at) + "</td><td>" + esc(res) + "</td></tr>");
+                });
+                h.push("</table>");
+            }
+            h.push("<p><small>Observations are citizen reports (Yes/No: is it raining where you are now?), not gauge measurements. Forecast = the rain probability shown by the app when the report was made (Open-Meteo). Bins with fewer than 10 reports are not reliable.</small></p></body></html>");
+            return h.join("");
+        }
+
+        // A plain file: shared through the phone's share sheet when available, otherwise downloaded
+        async function alShare() {
+            var name = "rain_report_" + lgDay(Date.now()) + ".html";
+            var f1 = new File([alHtml()], name, { type: "text/html" }), f2 = new File([lgCsv()], "rain_reports_" + lgDay(Date.now()) + ".csv", { type: "text/csv" });
+            try {
+                if (navigator.canShare && navigator.canShare({ files: [f1, f2] })) { await navigator.share({ files: [f1, f2], title: "Rain report vs forecast" }); return; }
+            } catch (e) { if (e && e.name === "AbortError") return; }
+            var url = URL.createObjectURL(f1), a = document.createElement("a");
+            a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        }
+        var AL_READY = true;
     </script>
 </body>
 </html>
