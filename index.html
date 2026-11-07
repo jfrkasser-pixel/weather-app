@@ -155,6 +155,13 @@
         .al-item summary { cursor: pointer; color: #38bdf8; font-weight: 600; }
         .al-ok { color: #86efac; font-weight: 600; font-size: 0.9rem; }
         .al-note { font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; }
+        .cm-toggle { display: flex; gap: 0.3rem; margin: 0 0 0.7rem; background: #0f172a; border: 1px solid #334155; border-radius: 999px; padding: 0.2rem; width: max-content; max-width: 100%; }
+        .cm-toggle button { background: transparent; border: 0; color: #94a3b8; font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
+        .cm-toggle button.on { background: #1e293b; color: #38bdf8; }
+        #forecast-container > * > .sm-day { display: none; background: transparent; border: 0; padding: 0; }
+        #forecast-container.cm-sm > * > *:not(.sm-day) { display: none; }
+        #forecast-container.cm-sm > * > .sm-day { display: block; }
+        .cm-extra { display: none; margin: 0.2rem 0 1rem; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -529,6 +536,7 @@
                 try { renderSky(data.hourly, i); } catch (e) { console.error(e); }
                 try { renderObs(data.hourly, i); } catch (e) { console.error(e); }
                 renderSunMoon(data.daily);
+                try { cmMerge(); } catch (e) { console.error(e); }
                 document.getElementById("footer").textContent =
                     "Weather app • Forecast updated " + new Date().toLocaleTimeString("en-GB", { timeZone: TZ });
             } catch (e) {
@@ -1903,6 +1911,17 @@
             TR_AL_RULES.forEach(r => { if (r[k]) TR_RULES.push({ rx: r[0], tpl: r[k] }); });
         })();
 
+        // ---------- Card toggle translations ----------
+        // columns: key, fr, de, th, zh, ru, sv, ar
+        const TR_CM = [
+            ["Weather", "Météo", "Wetter", "สภาพอากาศ", "天气", "Погода", "Väder", "الطقس"]
+        ];
+        (function () {
+            const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
+            if (!k) return;
+            TR_CM.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+        })();
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -2539,6 +2558,55 @@
         function nightShower(ctx) {
             return '<span class="mc">' + ctx.moon.icon + '<span class="mc-cloud big">🌧️</span></span>';
         }
+    
+        // ---------- One set of 3 day cards: weather and Sun & Moon share the same cards ----------
+        var CM_MODE = "w";
+        function cmSet(m) {
+            CM_MODE = m;
+            try { localStorage.setItem("wx_cardmode", m); } catch (e) {}
+            var fc = document.getElementById("forecast-container"), ex = document.getElementById("cm-extra");
+            if (fc) fc.classList.toggle("cm-sm", m === "s");
+            if (ex) ex.style.display = m === "s" ? "block" : "none";
+            document.querySelectorAll("#cm-toggle button").forEach(function (b) {
+                var on = b.getAttribute("data-m") === m;
+                b.className = on ? "on" : "";
+                b.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+        }
+
+        function cmMerge() {
+            if (typeof CM_READY === "undefined" || !CM_READY) { setTimeout(cmMerge, 0); return; }
+            var fc = document.getElementById("forecast-container"), box = document.getElementById("sunmoon");
+            if (!fc || !box) return;
+            var tiles = box.querySelectorAll(".sm-day"), cards = Array.prototype.slice.call(fc.children);
+            if (!cards.length || !tiles.length) return;
+            if (!document.getElementById("cm-toggle")) {
+                try { var sv = localStorage.getItem("wx_cardmode"); if (sv === "s" || sv === "w") CM_MODE = sv; } catch (e) {}
+                var tg = document.createElement("div");
+                tg.id = "cm-toggle"; tg.className = "cm-toggle";
+                [["w", "Weather"], ["s", "Sun & Moon"]].forEach(function (x) {
+                    var b = document.createElement("button");
+                    b.type = "button"; b.setAttribute("data-m", x[0]); b.textContent = x[1];
+                    b.addEventListener("click", function () { cmSet(x[0]); });
+                    tg.appendChild(b);
+                });
+                fc.parentNode.insertBefore(tg, fc);
+                var outer = box.closest ? box.closest(".strip-card") : null;
+                var ex = document.createElement("div");
+                ex.id = "cm-extra"; ex.className = "cm-extra";
+                var nx = document.getElementById("sm-next"), note = outer ? outer.querySelector(".sm-note") : null;
+                if (nx) ex.appendChild(nx);
+                if (note) ex.appendChild(note);
+                fc.parentNode.insertBefore(ex, fc.nextSibling);
+                if (outer) outer.style.display = "none";
+            }
+            for (var n = 0; n < cards.length && n < tiles.length; n++) {
+                cards[n].querySelectorAll(".sm-day").forEach(function (old) { old.parentNode.removeChild(old); });
+                cards[n].appendChild(tiles[n]);
+            }
+            cmSet(CM_MODE);
+        }
+        var CM_READY = true;
     </script>
 </body>
 </html>
