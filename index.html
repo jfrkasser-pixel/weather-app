@@ -188,9 +188,18 @@
         .al-row { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid #1e293b; font-size: 0.88rem; color: #e2e8f0; }
         .al-row span:last-child { text-align: right; font-weight: 700; }
         .al-hit { color: #86efac; } .al-miss { color: #fca5a5; } .al-wait { color: #fbbf24; } .al-none { color: #94a3b8; }
+        .pw-btn { background: #0f172a; color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 0.8rem; padding: 0.7rem 1.1rem; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 0.6rem; }
+        .pw-hint { font-size: 0.92rem; color: #cbd5e1; line-height: 1.5; }
 </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Weather">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
     <div class="container">
@@ -326,6 +335,12 @@
             <div id="al-list"></div>
             <div class="lg-btns"><button type="button" class="lg-btn" id="al-perm">Turn on notifications</button></div>
             <div class="sm-note" id="al-note">An alert is raised when the rain chance in the next 24 hours goes above 75%. The next day it is checked against the reports made that day.</div>
+        </div>
+
+        <div class="strip-card" id="pw-card" style="margin-top:1.25rem; display:none">
+            <div class="strip-title">Add to home screen</div>
+            <div class="pw-hint" id="pw-hint"></div>
+            <button type="button" class="pw-btn" id="pw-btn" style="display:none">Install app</button>
         </div>
 
         <div class="footer" id="footer">Weather app</div>
@@ -2009,6 +2024,21 @@
             TR_RA.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
         })();
 
+        // ---------- Add to home screen translations ----------
+        // columns: key, fr, de, th, zh, ru, sv, ar
+        const TR_PW = [
+            ["Add to home screen", "Ajouter à l'écran d'accueil", "Zum Startbildschirm hinzufügen", "เพิ่มลงหน้าจอหลัก", "添加到主屏幕", "Добавить на главный экран", "Lägg till på hemskärmen", "إضافة إلى الشاشة الرئيسية"],
+            ["Install app", "Installer l'application", "App installieren", "ติดตั้งแอป", "安装应用", "Установить приложение", "Installera appen", "تثبيت التطبيق"],
+            ["Install this page as an app on your phone: it opens full screen from the home screen.", "Installez cette page comme une application : elle s'ouvre en plein écran depuis l'écran d'accueil.", "Installieren Sie diese Seite als App: Sie öffnet sich im Vollbild vom Startbildschirm.", "ติดตั้งหน้านี้เป็นแอปบนโทรศัพท์ จะเปิดเต็มหน้าจอจากหน้าจอหลัก", "将此页面安装为手机应用：从主屏幕全屏打开。", "Установите эту страницу как приложение: она откроется на весь экран с главного экрана.", "Installera sidan som en app: den öppnas i helskärm från hemskärmen.", "ثبّت هذه الصفحة كتطبيق على هاتفك: تُفتح بملء الشاشة من الشاشة الرئيسية."],
+            ["On iPhone or iPad: tap the Share button, then Add to Home Screen.", "Sur iPhone ou iPad : touchez le bouton Partager, puis Sur l'écran d'accueil.", "Auf iPhone oder iPad: Tippen Sie auf Teilen, dann auf Zum Home-Bildschirm.", "บน iPhone หรือ iPad: แตะปุ่มแชร์ แล้วเลือก เพิ่มไปยังหน้าจอโฮม", "在 iPhone 或 iPad 上：点按分享按钮，然后选择添加到主屏幕。", "На iPhone или iPad: нажмите «Поделиться», затем «На экран Домой».", "På iPhone eller iPad: tryck på Dela och sedan Lägg till på hemskärmen.", "على iPhone أو iPad: اضغط زر المشاركة ثم أضف إلى الشاشة الرئيسية."],
+            ["In Chrome: open the menu (three dots), then choose Add to Home screen or Install app.", "Dans Chrome : ouvrez le menu (trois points), puis choisissez Ajouter à l'écran d'accueil ou Installer l'application.", "In Chrome: Menü (drei Punkte) öffnen und Zum Startbildschirm hinzufügen oder App installieren wählen.", "ใน Chrome: เปิดเมนู (สามจุด) แล้วเลือก เพิ่มลงหน้าจอหลัก หรือ ติดตั้งแอป", "在 Chrome 中：打开菜单（三个点），选择添加到主屏幕或安装应用。", "В Chrome: откройте меню (три точки) и выберите «Добавить на главный экран» или «Установить приложение».", "I Chrome: öppna menyn (tre punkter) och välj Lägg till på startskärmen eller Installera app.", "في Chrome: افتح القائمة (ثلاث نقاط) ثم اختر إضافة إلى الشاشة الرئيسية أو تثبيت التطبيق."]
+        ];
+        (function () {
+            const k = ({ fr: 1, de: 2, th: 3, zh: 4, ru: 5, sv: 6, ar: 7 })[LANG];
+            if (!k) return;
+            TR_PW.forEach(r => { if (r[k]) TR_DICT[r[0]] = r[k]; });
+        })();
+
         function trFill(tpl, m) {
             tpl = tpl.replace(/⟦([^⟧]*)⟧/g, (all, inner) => {
                 const ids = (inner.match(/\{[?@]?\d+\}/g) || []).map(x => parseInt(x.replace(/\D/g, ""), 10));
@@ -2966,6 +2996,42 @@
             setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
         }
         var RA_READY = true;
+    
+        // ---------- Add to home screen (installable web app) ----------
+        var PW_EVT = null;
+        function pwStandalone() {
+            try { return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; } catch (e) { return false; }
+        }
+        function pwRender() {
+            var card = document.getElementById("pw-card"), hint = document.getElementById("pw-hint"), btn = document.getElementById("pw-btn");
+            if (!card || !hint || !btn) return;
+            if (pwStandalone()) { card.style.display = "none"; return; }
+            card.style.display = "";
+            var ua = navigator.userAgent || "", ios = /iPhone|iPad|iPod/i.test(ua);
+            btn.style.display = PW_EVT ? "" : "none";
+            if (PW_EVT) hint.textContent = "Install this page as an app on your phone: it opens full screen from the home screen.";
+            else if (ios) hint.textContent = "On iPhone or iPad: tap the Share button, then Add to Home Screen.";
+            else hint.textContent = "In Chrome: open the menu (three dots), then choose Add to Home screen or Install app.";
+        }
+        function pwInit() {
+            window.addEventListener("beforeinstallprompt", function (ev) { ev.preventDefault(); PW_EVT = ev; pwRender(); });
+            window.addEventListener("appinstalled", function () { PW_EVT = null; pwRender(); });
+            var btn = document.getElementById("pw-btn");
+            if (btn && !btn.__bound) {
+                btn.__bound = true;
+                btn.addEventListener("click", function () {
+                    if (!PW_EVT) return;
+                    PW_EVT.prompt();
+                    PW_EVT.userChoice.then(function () { PW_EVT = null; pwRender(); }).catch(function () {});
+                });
+            }
+            pwRender();
+            try {
+                if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1"))
+                    navigator.serviceWorker.register("sw.js").catch(function () {});
+            } catch (e) {}
+        }
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", pwInit); else pwInit();
     </script>
 </body>
 </html>
